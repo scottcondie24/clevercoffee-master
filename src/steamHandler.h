@@ -3,6 +3,7 @@
  *
  * @brief Handler for digital steam switch
  */
+#include <hardware/pinmapping.h>
 
 uint8_t currStateSteamSwitch;
 

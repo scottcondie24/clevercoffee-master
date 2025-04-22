@@ -253,12 +253,44 @@ bool displayShottimer() {
 
 #if (FEATURE_SCALE == 1)
         u8g2.setFont(u8g2_font_profont22_tf);
-        u8g2.setCursor(64, 15);
+        #if(FEATURE_PRESSURESENSOR == 2)
+            u8g2.setCursor(64, 5);
+            u8g2.print(timeBrewed / 1000, 1);
+            u8g2.print("s");
+            u8g2.setCursor(64, 22);
+            u8g2.print(weightBrew, 1);
+            u8g2.print("g");
+            u8g2.setFont(u8g2_font_profont11_tf);
+            u8g2.setCursor(64, 45);
+            u8g2.print("T: ");
+            u8g2.print(temperature, 1);
+            u8g2.print((char)176);
+            u8g2.print("C");
+            u8g2.setCursor(64, 55);
+            u8g2.print("P:");
+            u8g2.print(inputPressure, 1);
+            u8g2.print("Bar");
+        #else
+            u8g2.setCursor(64, 15);
+            u8g2.print(timeBrewed / 1000, 1);
+            u8g2.print("s");
+            u8g2.setCursor(64, 38);
+            u8g2.print(weightBrew, 1);
+            u8g2.print("g");
+        #endif
+        u8g2.setFont(u8g2_font_profont11_tf);
+#elif(FEATURE_PRESSURESENSOR == 2)
+        u8g2.setFont(u8g2_font_profont22_tf);
+        u8g2.setCursor(54, 2);
         u8g2.print(timeBrewed / 1000, 1);
         u8g2.print("s");
-        u8g2.setCursor(64, 38);
-        u8g2.print(weightBrew, 1);
-        u8g2.print("g");
+        u8g2.setCursor(54, 24);
+        u8g2.print(temperature, 1);
+        u8g2.print((char)176);
+        u8g2.print("C");
+        u8g2.setCursor(54, 46);
+        u8g2.print(inputPressure, 1);
+        u8g2.print("Bar");
         u8g2.setFont(u8g2_font_profont11_tf);
 #else
         displayBrewtime(48, 25, timeBrewed);

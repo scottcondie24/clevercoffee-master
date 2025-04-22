@@ -16,6 +16,8 @@ class StandardLED : public LED {
 
         void turnOn() override;
         void turnOff() override;
+        void turnOnInv() override;
+        void turnOffInv() override;
         void setColor(int red, int green, int blue);
         void setBrightness(int value);
 

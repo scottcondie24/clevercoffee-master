@@ -46,6 +46,15 @@ void printScreen() {
     u8g2.setCursor(114, 26);
     u8g2.print((char)176);
     u8g2.print("C");
+    #if (FEATURE_PRESSURESENSOR == 2)
+    u8g2.setCursor(35, 36);
+    u8g2.print("Press: ");
+    //u8g2.setCursor(90, 36);
+    u8g2.setCursor(84, 36);
+    u8g2.print(inputPressure, 2);
+    u8g2.setCursor(108, 36);
+    u8g2.print("Bar");
+    #endif
 
     displayThermometerOutline(4, 62);
 

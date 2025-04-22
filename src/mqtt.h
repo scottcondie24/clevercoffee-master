@@ -13,7 +13,7 @@
 #include <os.h>
 
 unsigned long previousMillisMQTT;
-const unsigned long intervalMQTT = 5000;
+const unsigned long intervalMQTT = 2000;
 
 WiFiClient net;
 PubSubClient mqtt(net);
@@ -511,11 +511,12 @@ int sendHASSIODiscoveryMsg() {
     DiscoveryObject brewPidDelay = GenerateNumberDevice("brewPidDelay", "Brew Pid Delay", BREW_PID_DELAY_MIN, BREW_PID_DELAY_MAX, 0.1, "");
     DiscoveryObject startKp = GenerateNumberDevice("startKp", "Start kP", PID_KP_START_MIN, PID_KP_START_MAX, 0.1, "");
     DiscoveryObject startTn = GenerateNumberDevice("startTn", "Start Tn", PID_TN_START_MIN, PID_TN_START_MAX, 0.1, "");
-    DiscoveryObject steamKp = GenerateNumberDevice("steamKp", "Start Kp", PID_KP_STEAM_MIN, PID_KP_STEAM_MAX, 0.1, "");
+    DiscoveryObject steamKp = GenerateNumberDevice("steamKp", "Steam Kp", PID_KP_STEAM_MIN, PID_KP_STEAM_MAX, 0.1, "");
     DiscoveryObject aggKp = GenerateNumberDevice("aggKp", "aggKp", PID_KP_REGULAR_MIN, PID_KP_REGULAR_MAX, 0.1, "");
     DiscoveryObject aggTn = GenerateNumberDevice("aggTn", "aggTn", PID_TN_REGULAR_MIN, PID_TN_REGULAR_MAX, 0.1, "");
     DiscoveryObject aggTv = GenerateNumberDevice("aggTv", "aggTv", PID_TV_REGULAR_MIN, PID_TV_REGULAR_MAX, 0.1, "");
     DiscoveryObject aggIMax = GenerateNumberDevice("aggIMax", "aggIMax", PID_I_MAX_REGULAR_MIN, PID_I_MAX_REGULAR_MAX, 0.1, "");
+    DiscoveryObject weightSetpoint = GenerateNumberDevice("weightSetpoint", "Weight Setpoint", WEIGHTSETPOINT_MIN, WEIGHTSETPOINT_MAX, 0.1, "");
 
 #if FEATURE_BREWCONTROL == 1
     DiscoveryObject brewtime = GenerateNumberDevice("brewtime", "Brew time", BREW_TIME_MIN, BREW_TIME_MAX, 0.1, "s");
@@ -533,7 +534,7 @@ int sendHASSIODiscoveryMsg() {
     DiscoveryObject machineStateDevice = GenerateSensorDevice("machineState", "Machine State", "", "enum");
     DiscoveryObject currentWeight = GenerateSensorDevice("currentWeight", "Weight", "g", "weight");
 
-#if FEATURE_PRESSURESENSOR == 1
+#if FEATURE_PRESSURESENSOR == 1 || FEATURE_PRESSURESENSOR == 2
     DiscoveryObject pressure = GenerateSensorDevice("pressure", "Pressure", "bar", "pressure");
 #endif
 
@@ -576,7 +577,7 @@ int sendHASSIODiscoveryMsg() {
                                                      steamON,
                                                      startUsePonM
 
-#if FEATURE_PRESSURESENSOR == 1
+#if FEATURE_PRESSURESENSOR == 1 || FEATURE_PRESSURESENSOR == 2
                                                      ,
                                                      pressure
 #endif
@@ -586,6 +587,7 @@ int sendHASSIODiscoveryMsg() {
     discoveryObjects.push_back(currentWeight);
     discoveryObjects.push_back(scaleCalibrateButton);
     discoveryObjects.push_back(scaleTareButton);
+    discoveryObjects.push_back(weightSetpoint);
 #endif
 
     // Send the Objects to Hassio

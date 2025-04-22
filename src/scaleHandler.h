@@ -182,12 +182,15 @@ void shottimerscale() {
                 }
             }
             else {
-                if (timeBrewed > preinfusion * 1000) {
+                /*if (timeBrewed > preinfusion * 1000) {
                     weightPreBrew = weight;
                     shottimerCounter = 20;
                 }
-                else if (timeBrewed > 0) {
-                    weightBrew = 0;
+                else */
+                if (timeBrewed > 0) {
+                    weightPreBrew = weight;
+                    shottimerCounter = 20;
+                    //weightBrew = 0;
                 }
             }
 

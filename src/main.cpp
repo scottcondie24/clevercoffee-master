@@ -41,6 +41,7 @@
 #include "hardware/Switch.h"
 #include "hardware/TempSensorDallas.h"
 #include "hardware/TempSensorTSIC.h"
+#include "hardware/TempSensorK.h"
 #include "hardware/pinmapping.h"
 
 // User configuration & defaults
@@ -49,9 +50,15 @@
 
 hw_timer_t* timer = NULL;
 
+#if (TEMP_SENSOR == 1)
+#include "OneWire.h"
+#endif
+
 #if (FEATURE_PRESSURESENSOR == 1)
 #include "hardware/pressureSensor.h"
 #include <Wire.h>
+#elif (FEATURE_PRESSURESENSOR == 2)
+#include "hardware/pressureSensorAnalog.h"
 #endif
 
 #if OLED_DISPLAY == 3
@@ -84,6 +91,7 @@ enum MachineState {
     kShotTimerAfterBrew = 31,
     kBrewDetectionTrailing = 35,
     kSteam = 40,
+    kWater = 45,
     kBackflush = 50,
     kWaterEmpty = 70,
     kEmergencyStop = 80,
@@ -149,21 +157,30 @@ float inputPressure = 0;
 float inputPressureFilter = 0;
 const unsigned long intervalPressure = 100;
 unsigned long previousMillisPressure; // initialisation at the end of init()
+#elif (FEATURE_PRESSURESENSOR == 2)
+float inputPressure = 0;
+float inputPressureFilter = 0;
+const unsigned long intervalPressure = 100;
+unsigned long previousMillisPressure; // initialisation at the end of init()
 #endif
 
 Switch* waterSensor;
 
 GPIOPin* statusLedPin;
 GPIOPin* brewLedPin;
+GPIOPin* waterLedPin;
+GPIOPin* steamLedPin;
 
 LED* statusLed;
 LED* brewLed;
+LED* waterLed;
+LED* steamLed;
 
 GPIOPin heaterRelayPin(PIN_HEATER, GPIOPin::OUT);
 Relay heaterRelay(heaterRelayPin, HEATER_SSR_TYPE);
 
 GPIOPin pumpRelayPin(PIN_PUMP, GPIOPin::OUT);
-Relay pumpRelay(pumpRelayPin, PUMP_VALVE_SSR_TYPE);
+Relay pumpRelay(pumpRelayPin, PUMP_WATER_SSR_TYPE);
 
 GPIOPin valveRelayPin(PIN_VALVE, GPIOPin::OUT);
 Relay valveRelay(valveRelayPin, PUMP_VALVE_SSR_TYPE);
@@ -171,8 +188,11 @@ Relay valveRelay(valveRelayPin, PUMP_VALVE_SSR_TYPE);
 Switch* powerSwitch;
 Switch* brewSwitch;
 Switch* steamSwitch;
+Switch* waterSwitch;
 
 TempSensor* tempSensor;
+
+GPIOPin pressureSensorAnalog(PIN_PRESSURESENSOR, GPIOPin::IN_ANALOG);
 
 #include "isr.h"
 
@@ -432,9 +452,14 @@ U8G2_SH1106_128X64_NONAME_F_4W_HW_SPI u8g2(U8G2_R0, OLED_CS, OLED_DC, /* reset=*
 Timer printDisplayTimer(&printScreen, 100);
 #endif
 
+//initialise water switch variable
+int waterON = 0;
+int waterFirstON = 0;   //check if this is needed
+
 #include "powerHandler.h"
 #include "scaleHandler.h"
 #include "steamHandler.h"
+#include "waterHandler.h"
 
 // Emergency stop if temp is too high
 void testEmergencyStop() {
@@ -741,7 +766,12 @@ void handleMachineState() {
 
             if (steamON == 1) {
                 machineState = kSteam;
-
+                if (standbyModeOn) {
+                    resetStandbyTimer();
+                }
+            }
+            if (waterON == 1) {
+                machineState = kWater;
                 if (standbyModeOn) {
                     resetStandbyTimer();
                 }
@@ -802,6 +832,10 @@ void handleMachineState() {
                 machineState = kSteam;
             }
 
+            if (waterON == 1) {
+                machineState = kWater;
+            }
+
             if (emergencyStop) {
                 machineState = kEmergencyStop;
             }
@@ -825,6 +859,10 @@ void handleMachineState() {
 
             if (steamON == 1) {
                 machineState = kSteam;
+            }
+
+            if (waterON == 1) {
+                machineState = kWater;
             }
 
             if (backflushOn || backflushState > kBackflushWaitBrewswitchOn) {
@@ -864,6 +902,10 @@ void handleMachineState() {
                 machineState = kSteam;
             }
 
+            if (waterON == 1) {
+                machineState = kWater;
+            }
+
             if (backflushOn || backflushState > kBackflushWaitBrewswitchOn) {
                 machineState = kBackflush;
             }
@@ -887,6 +929,31 @@ void handleMachineState() {
 
         case kSteam:
             if (steamON == 0) {
+                machineState = kPidNormal;
+            }
+            
+            if (emergencyStop) {
+                machineState = kEmergencyStop;
+            }
+
+            if (backflushOn || backflushState > kBackflushWaitBrewswitchOn) {
+                machineState = kBackflush;
+            }
+
+            if (pidON == 0) {
+                machineState = kPidDisabled;
+            }
+
+            if (!waterFull) {
+                machineState = kWaterEmpty;
+            }
+
+            if (tempSensor->hasError()) {
+                machineState = kSensorError;
+            }
+            break;
+        case kWater:
+            if (waterON == 0) {
                 machineState = kPidNormal;
             }
 
@@ -1000,6 +1067,9 @@ void handleMachineState() {
                 if (steamON) {
                     machineState = kSteam;
                 }
+                else if (waterON) {
+                    machineState = kWater;
+                }
                 else if (isBrewDetected) {
                     machineState = kBrew;
                 }
@@ -1046,6 +1116,8 @@ char const* machinestateEnumToString(MachineState machineState) {
             return "Brew Detection Trailing";
         case kSteam:
             return "Steam";
+        case kWater:
+            return "Water";
         case kBackflush:
             return "Backflush";
         case kWaterEmpty:
@@ -1619,7 +1691,7 @@ void setup() {
     mqttSensors["currentKd"] = [] { return bPID.GetKd(); };
     mqttSensors["machineState"] = [] { return machineState; };
 
-#if FEATURE_PRESSURESENSOR == 1
+#if FEATURE_PRESSURESENSOR == 1 || FEATURE_PRESSURESENSOR == 2
     mqttSensors["pressure"] = [] { return inputPressureFilter; };
 #endif
 
@@ -1665,12 +1737,39 @@ void setup() {
         brewSwitch = new IOSwitch(PIN_BREWSWITCH, GPIOPin::IN_HARDWARE, BREWSWITCH_TYPE, BREWSWITCH_MODE);
     }
 
+    if (FEATURE_WATERSWITCH) {
+        waterSwitch = new IOSwitch(PIN_WATERSWITCH, GPIOPin::IN_HARDWARE, WATERSWITCH_TYPE, WATERSWITCH_MODE);
+    }
+
     if (LED_TYPE == LED::STANDARD) {
         statusLedPin = new GPIOPin(PIN_STATUSLED, GPIOPin::OUT);
         brewLedPin = new GPIOPin(PIN_BREWLED, GPIOPin::OUT);
+        steamLedPin = new GPIOPin(PIN_STEAMLED, GPIOPin::OUT);
+        waterLedPin = new GPIOPin(PIN_WATERLED, GPIOPin::OUT);
 
         statusLed = new StandardLED(*statusLedPin);
         brewLed = new StandardLED(*brewLedPin);
+        steamLed = new StandardLED(*steamLedPin);
+        waterLed = new StandardLED(*waterLedPin);
+
+        if (FEATURE_BREW_LED == 1) {
+            brewLed->turnOff();
+        }
+        else if (FEATURE_BREW_LED == 2) {
+            brewLed->turnOffInv();
+        }
+        if (FEATURE_STEAM_LED == 1) {
+            steamLed->turnOff();
+        }
+        else if (FEATURE_STEAM_LED == 2) {
+            steamLed->turnOffInv();
+        }
+        if (FEATURE_WATER_LED == 1) {
+            waterLed->turnOff();
+        }
+        else if (FEATURE_WATER_LED == 2) {
+            waterLed->turnOffInv();
+        }
     }
     else {
         // TODO Addressable LEDs
@@ -1735,6 +1834,9 @@ void setup() {
     else if (TEMP_SENSOR == 2) {
         tempSensor = new TempSensorTSIC(PIN_TEMPSENSOR);
     }
+    else if (TEMP_SENSOR == 3) {
+        tempSensor = new TempSensorK(PIN_TEMPERATURE_CLK,PIN_TEMPERATURE_CS,PIN_TEMPERATURE_SO);
+    }
 
     temperature = tempSensor->getCurrentTemperature();
 
@@ -1758,7 +1860,7 @@ void setup() {
     previousMillisScale = currentTime;
 #endif
 
-#if (FEATURE_PRESSURESENSOR == 1)
+#if (FEATURE_PRESSURESENSOR == 1 || FEATURE_PRESSURESENSOR == 2)
     previousMillisPressure = currentTime;
 #endif
 
@@ -1873,7 +1975,7 @@ void looppid() {
     brew();
 #endif
 
-#if (FEATURE_PRESSURESENSOR == 1)
+#if (FEATURE_PRESSURESENSOR == 1 || FEATURE_PRESSURESENSOR == 2)
     unsigned long currentMillisPressure = millis();
 
     if (currentMillisPressure - previousMillisPressure >= intervalPressure) {
@@ -1885,6 +1987,7 @@ void looppid() {
 
     checkSteamSwitch();
     checkPowerSwitch();
+    checkWaterSwitch();
 
     // set setpoint depending on steam or brew mode
     if (steamON == 1) {
@@ -1894,6 +1997,16 @@ void looppid() {
         setpoint = brewSetpoint;
     }
 
+    //turn on pump if water switch is on, only turn off if not in a brew state
+    if (waterON == 1) {
+        pumpRelay.on();
+    }
+    else if (waterON == 0) {
+        if(machineState != kBrew && machineState != kBackflush && brewSwitchState != kBrewSwitchFlushOff) {
+            pumpRelay.off();
+        }
+    }
+    
     updateStandbyTimer();
 
     handleMachineState();
@@ -1988,12 +2101,52 @@ void loopLED() {
         }
     }
 
-    if (FEATURE_BREW_LED) {
+    if (FEATURE_BREW_LED == 1) {
         if (machineState == kBrew) {
             brewLed->turnOn();
         }
         else {
             brewLed->turnOff();
+        }
+    }
+    else if (FEATURE_BREW_LED == 2) {
+        if (machineState == kBrew) {
+            brewLed->turnOnInv();
+        }
+        else {
+            brewLed->turnOffInv();
+        }
+    }
+    if (FEATURE_STEAM_LED == 1) {
+        if (machineState == kSteam) {
+            steamLed->turnOn();
+        }
+        else {
+            steamLed->turnOff();
+        }
+    }
+    else if (FEATURE_STEAM_LED == 2) {
+        if (machineState == kSteam) {
+            steamLed->turnOnInv();
+        }
+        else {
+            steamLed->turnOffInv();
+        }
+    }
+    if (FEATURE_WATER_LED == 1) {
+        if (machineState == kWater) {
+            waterLed->turnOn();
+        }
+        else {
+            waterLed->turnOff();
+        }
+    }
+    else if (FEATURE_WATER_LED == 2) {
+        if (machineState == kWater) {
+            waterLed->turnOnInv();
+        }
+        else {
+            waterLed->turnOffInv();
         }
     }
 }

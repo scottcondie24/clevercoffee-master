@@ -60,7 +60,7 @@ boolean scaleTareOn = 0;
 int shottimerCounter = 10;
 float calibrationValue = SCALE_CALIBRATION_FACTOR; // use calibration example to get value
 float weight = 0;                                  // value from HX711
-float weightPreBrew = 0;                           // value of scale before wrew started
+float weightPreBrew = 0;                           // value of scale before brew started
 float weightBrew = 0;                              // weight value of brew
 float scaleDelayValue = 2.5;                       // value in gramm that takes still flows onto the scale after brew is stopped
 bool scaleFailure = false;
@@ -131,6 +131,7 @@ void checkbrewswitch() {
                     LOG(DEBUG, "brewswitchTriggerCase = kBrewSwitchFlushOff: brew switch long press released - stop flushing");
                     valveRelay.off();
                     pumpRelay.off();
+                    currBrewState = kWaitBrewOff;
                 }
                 break;
 
