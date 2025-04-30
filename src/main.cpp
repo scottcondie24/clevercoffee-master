@@ -957,6 +957,10 @@ void handleMachineState() {
                 machineState = kPidNormal;
             }
 
+            if (steamON == 1) {
+                machineState = kSteam;
+            }
+
             if (emergencyStop) {
                 machineState = kEmergencyStop;
             }
@@ -1997,19 +2001,25 @@ void looppid() {
         setpoint = brewSetpoint;
     }
 
-    //turn on pump if water switch is on, only turn off if not in a brew state
-    if (waterON == 1) {
-        pumpRelay.on();
-    }
-    else if (waterON == 0) {
-        if(machineState != kBrew && machineState != kBackflush && brewSwitchState != kBrewSwitchFlushOff) {
-            pumpRelay.off();
-        }
-    }
+
     
     updateStandbyTimer();
 
     handleMachineState();
+
+
+    //turn on pump if water switch is on, only turn off if not in a brew or flush state
+    if (machineState == kWaterEmpty) {
+        pumpRelay.off();
+    }
+    else if (machineState == kWater || (machineState == kSteam && waterON == 1)) {
+        pumpRelay.on();
+    }
+    else {    // was (waterON == 0) but not needed, currently need currBrewSwitchState as machineState doesnt change quick enough and turns the pump off when flushing
+        if(machineState != kBrew && machineState != kBackflush && brewSwitchState != kBrewSwitchFlushOff) {
+            pumpRelay.off();
+        }
+    }
 
     // Check if PID should run or not. If not, set to manual and force output to zero
 #if OLED_DISPLAY != 0
