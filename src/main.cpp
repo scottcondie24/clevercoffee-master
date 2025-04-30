@@ -454,7 +454,6 @@ Timer printDisplayTimer(&printScreen, 100);
 
 //initialise water switch variable
 int waterON = 0;
-int waterFirstON = 0;   //check if this is needed
 
 #include "powerHandler.h"
 #include "scaleHandler.h"

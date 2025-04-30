@@ -4,7 +4,6 @@
  * @brief Handler for digital hot water switch
  */
 
-#include <hardware/pinmapping.h>
 uint8_t currStateWaterSwitch;
 
 void checkWaterSwitch() {
@@ -17,8 +16,8 @@ void checkWaterSwitch() {
                 waterON = 1;
             }
 
-            // if activated via web interface then waterFirstON == 1, prevent override
-            if (waterSwitchReading == LOW && !waterFirstON) {
+            // Set waterON to 0 when waterswitch is LOW
+            if (waterSwitchReading == LOW) {
                 waterON = 0;
             }
         }
