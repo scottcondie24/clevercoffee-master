@@ -817,6 +817,10 @@ void handleMachineState() {
                 machineState = kSteam;
             }
 
+            if (waterON == 1) {
+                machineState = kWater;
+            }
+
             if (emergencyStop) {
                 machineState = kEmergencyStop;
             }
@@ -840,6 +844,10 @@ void handleMachineState() {
 
             if (steamON == 1) {
                 machineState = kSteam;
+            }
+
+            if (waterON == 1) {
+                machineState = kWater;
             }
 
             if (backflushOn || backflushState > kBackflushWaitBrewswitchOn) {
@@ -877,6 +885,10 @@ void handleMachineState() {
 
             if (steamON == 1) {
                 machineState = kSteam;
+            }
+
+            if (waterON == 1) {
+                machineState = kWater;
             }
 
             if (backflushOn || backflushState > kBackflushWaitBrewswitchOn) {
@@ -934,6 +946,7 @@ void handleMachineState() {
             if (steamON == 1) {
                 machineState = kSteam;
             }
+
             if (emergencyStop) {
                 machineState = kEmergencyStop;
             }
@@ -1044,7 +1057,7 @@ void handleMachineState() {
                 if (steamON) {
                     machineState = kSteam;
                 }
-                if (waterON) {
+                else if (waterON) {
                     machineState = kWater;
                 }
                 else if (isBrewDetected) {
