@@ -23,6 +23,8 @@
 #include <U8g2lib.h> // i2c display
 #include <WiFiManager.h>
 #include <os.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 // Includes
 #include "display/bitmaps.h" // user icons for display
@@ -46,6 +48,8 @@
 // User configuration & defaults
 #include "defaults.h"
 #include "userConfig.h" // needs to be configured by the user
+
+SemaphoreHandle_t i2cMutex;
 
 hw_timer_t* timer = NULL;
 
@@ -1142,12 +1146,50 @@ void websiteSetup() {
 
 const char sysVersion[] = (STR(FW_VERSION) "." STR(FW_SUBVERSION) "." STR(FW_HOTFIX) " " FW_BRANCH " " AUTO_VERSION);
 
+void displayTask(void *pvParameters) {
+#if (FREERTOS_ENABLE)
+    for (;;) {
+        if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+            printDisplayTimer();
+            xSemaphoreGive(i2cMutex);
+        }
+        else {
+            vTaskDelay(pdMS_TO_TICKS(10));  //retry in 10ms if busy
+        }
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+#endif
+}
+
+void adsTask(void *pvParameters) {
+#if (FREERTOS_ENABLE)
+    for (;;) {
+        if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+            //printDisplayTimer();
+            xSemaphoreGive(i2cMutex);
+        }
+        else {
+            vTaskDelay(pdMS_TO_TICKS(10));  //retry in 10ms if busy
+        }
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+#endif
+}
+
 void setup() {
     // Start serial console
     Serial.begin(115200);
 
     // Initialize the logger
     Logger::init(23);
+
+    //Create mutex for handling i2c
+    i2cMutex = xSemaphoreCreateMutex();
+
+    //Start Tasks
+    xTaskCreate(displayTask, "Display Task", 2048, NULL, 1, NULL);
+    xTaskCreate(adsTask, "ADS1115 Task", 2048, NULL, 1, NULL);
+
 
     editableVars["PID_ON"] = {
         .displayName = "Enable PID Controller", .hasHelpText = false, .helpText = "", .type = kUInt8, .section = sPIDSection, .position = 1, .show = [] { return true; }, .minValue = 0, .maxValue = 1, .ptr = (void*)&pidON};
@@ -1906,7 +1948,9 @@ void looppid() {
 
     // Check if PID should run or not. If not, set to manual and force output to zero
 #if OLED_DISPLAY != 0
-    printDisplayTimer();
+    if (FREERTOS_ENABLE == 0) {
+        printDisplayTimer();
+    }
 #endif
 
     if (machineState == kPidDisabled || machineState == kWaterTankEmpty || machineState == kSensorError || machineState == kEmergencyStop || machineState == kEepromError || machineState == kStandby || brewPIDDisabled) {
