@@ -11,9 +11,15 @@
 #include <Arduino.h>
 #include <PubSubClient.h>
 #include <os.h>
+#include <map>
+#include <string>
+
+std::map<std::string, std::string> mqttLastSent;
 
 unsigned long previousMillisMQTT;
 const unsigned long intervalMQTT = 5000;
+const unsigned long intervalMQTTbrew = 500;
+const unsigned long intervalMQTTstandby = 10000;
 
 WiFiClient net;
 PubSubClient mqtt(net);
@@ -220,68 +226,77 @@ void mqtt_callback(char* topic, byte* data, unsigned int length) {
  */
 int writeSysParamsToMQTT(bool continueOnError = true) {
     unsigned long currentMillisMQTT = millis();
-
-    if ((currentMillisMQTT - previousMillisMQTT >= intervalMQTT) && FEATURE_MQTT == 1) {
+    
+    unsigned long interval =
+        (machineState == kBrew)    ? intervalMQTTbrew :
+        (machineState == kStandby) ? intervalMQTTstandby :
+                                     intervalMQTT;
+    
+    if ((currentMillisMQTT - previousMillisMQTT >= interval) && FEATURE_MQTT == 1) {
         previousMillisMQTT = currentMillisMQTT;
 
         if (mqtt.connected()) {
             mqtt_publish("status", (char*)"online");
 
             int errorState = 0;
+            char buffer[32]; // shared buffer for snprintf
 
             for (const auto& pair : mqttVars) {
                 editable_t* e = pair.second();
 
                 switch (e->type) {
                     case kFloat:
-                        if (!mqtt_publish(pair.first, number2string(*(float*)e->ptr), true)) {
-                            errorState = mqtt.state();
-                        }
+                        snprintf(buffer, sizeof(buffer), "%.2f", *(float*)e->ptr);
                         break;
                     case kDouble:
-                        if (!mqtt_publish(pair.first, number2string(*(double*)e->ptr), true)) {
-                            errorState = mqtt.state();
-                        }
-                        break;
                     case kDoubletime:
-                        if (!mqtt_publish(pair.first, number2string(*(double*)e->ptr), true)) {
-                            errorState = mqtt.state();
-                        }
+                        snprintf(buffer, sizeof(buffer), "%.2f", *(double*)e->ptr);
                         break;
-
                     case kInteger:
-                        if (!mqtt_publish(pair.first, number2string(*(int*)e->ptr), true)) {
-                            errorState = mqtt.state();
-                        }
+                        snprintf(buffer, sizeof(buffer), "%d", *(int*)e->ptr);
                         break;
-
                     case kUInt8:
-                        if (!mqtt_publish(pair.first, number2string(*(uint8_t*)e->ptr), true)) {
-                            errorState = mqtt.state();
-                        }
+                        snprintf(buffer, sizeof(buffer), "%u", *(uint8_t*)e->ptr);
                         break;
-
                     case kCString:
-                        if (!mqtt_publish(pair.first, number2string(*(char*)e->ptr), true)) {
-                            errorState = mqtt.state();
-                        }
+                        snprintf(buffer, sizeof(buffer), "%s", (char*)e->ptr);
                         break;
+                    default:
+                        continue; // Skip unknown types
                 }
 
-                if (errorState != 0 && !continueOnError) {
-                    // An error occurred and continueOnError is false, return the error state
-                    return errorState;
+                std::string topic = pair.first;
+                std::string value = std::string(buffer);
+
+                if (mqttLastSent[topic] != value) {
+                    if (mqtt_publish(topic.c_str(), buffer, true)) {
+                        mqttLastSent[topic] = value; // Update only if sent successfully
+                    } else {
+                        errorState = mqtt.state();
+                        if (errorState != 0 && !continueOnError) {
+                            // An error occurred and continueOnError is false, return the error state
+                            return errorState;
+                        }
+                    }
                 }
             }
 
+            // === mqttSensors loop ===
             for (const auto& pair : mqttSensors) {
-                if (!mqtt_publish(pair.first, number2string(pair.second()))) {
-                    errorState = mqtt.state();
-                }
+                snprintf(buffer, sizeof(buffer), "%.2f", pair.second());
+                std::string topic = pair.first;
+                std::string value = std::string(buffer);
 
-                if (errorState != 0 && !continueOnError) {
-                    // An error occurred and continueOnError is false, return the error state
-                    return errorState;
+                if (mqttLastSent[topic] != value) {
+                    if (mqtt_publish(topic.c_str(), buffer)) {
+                        mqttLastSent[topic] = value;
+                    } else {
+                        errorState = mqtt.state();
+                        if (errorState != 0 && !continueOnError) {
+                            // An error occurred and continueOnError is false, return the error state
+                            return errorState;
+                        }
+                    }
                 }
             }
         }
@@ -509,13 +524,14 @@ int sendHASSIODiscoveryMsg() {
     DiscoveryObject steamSetPoint = GenerateNumberDevice("steamSetpoint", "Steam setpoint", STEAM_SETPOINT_MIN, STEAM_SETPOINT_MAX, 0.1, "°C");
     DiscoveryObject brewTempOffset = GenerateNumberDevice("brewTempOffset", "Brew Temp. Offset", BREW_TEMP_OFFSET_MIN, BREW_TEMP_OFFSET_MAX, 0.1, "°C");
     DiscoveryObject brewPidDelay = GenerateNumberDevice("brewPidDelay", "Brew Pid Delay", BREW_PID_DELAY_MIN, BREW_PID_DELAY_MAX, 0.1, "");
-    DiscoveryObject startKp = GenerateNumberDevice("startKp", "Start kP", PID_KP_START_MIN, PID_KP_START_MAX, 0.1, "");
+    DiscoveryObject startKp = GenerateNumberDevice("startKp", "Start Kp", PID_KP_START_MIN, PID_KP_START_MAX, 0.1, "");
     DiscoveryObject startTn = GenerateNumberDevice("startTn", "Start Tn", PID_TN_START_MIN, PID_TN_START_MAX, 0.1, "");
-    DiscoveryObject steamKp = GenerateNumberDevice("steamKp", "Start Kp", PID_KP_STEAM_MIN, PID_KP_STEAM_MAX, 0.1, "");
+    DiscoveryObject steamKp = GenerateNumberDevice("steamKp", "Steam Kp", PID_KP_STEAM_MIN, PID_KP_STEAM_MAX, 0.1, "");
     DiscoveryObject aggKp = GenerateNumberDevice("aggKp", "aggKp", PID_KP_REGULAR_MIN, PID_KP_REGULAR_MAX, 0.1, "");
     DiscoveryObject aggTn = GenerateNumberDevice("aggTn", "aggTn", PID_TN_REGULAR_MIN, PID_TN_REGULAR_MAX, 0.1, "");
     DiscoveryObject aggTv = GenerateNumberDevice("aggTv", "aggTv", PID_TV_REGULAR_MIN, PID_TV_REGULAR_MAX, 0.1, "");
     DiscoveryObject aggIMax = GenerateNumberDevice("aggIMax", "aggIMax", PID_I_MAX_REGULAR_MIN, PID_I_MAX_REGULAR_MAX, 0.1, "");
+    DiscoveryObject weightSetpoint = GenerateNumberDevice("weightSetpoint", "Weight Setpoint", WEIGHTSETPOINT_MIN, WEIGHTSETPOINT_MAX, 0.1, "");
 
 #if FEATURE_BREWCONTROL == 1
     DiscoveryObject brewtime = GenerateNumberDevice("brewtime", "Brew time", BREW_TIME_MIN, BREW_TIME_MAX, 0.1, "s");
@@ -586,6 +602,7 @@ int sendHASSIODiscoveryMsg() {
     discoveryObjects.push_back(currentWeight);
     discoveryObjects.push_back(scaleCalibrateButton);
     discoveryObjects.push_back(scaleTareButton);
+    discoveryObjects.push_back(weightSetpoint);
 #endif
 
     // Send the Objects to Hassio
