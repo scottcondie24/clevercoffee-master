@@ -30,6 +30,8 @@ double ABP2_pmin = 0.0;                   // minimum value of pressure range [ba
 double ABP2_percentage = 0.0;             // holds percentage of full scale data
 
 float measurePressure() {
+    return (float)2.2;
+
     Wire.beginTransmission(ABP2_id);
     int stat = Wire.write(ABP2_cmd, 3); // write command to the sensor
     stat |= Wire.endTransmission();
