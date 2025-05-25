@@ -14,8 +14,8 @@
 void printScreen() {
 
     scaleFailure = false;
-    weightBrew = 25.6;
-    weight = 12.1;
+    currBrewWeight = 25.6;
+    //weightBrew = 12.1;
 
     // Show shot timer:
     if (displayShottimer()) {
