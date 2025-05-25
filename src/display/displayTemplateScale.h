@@ -12,13 +12,17 @@
  * @brief Send data to display
  */
 void printScreen() {
-
+    static float fakeWeight = 0.0;
     scaleFailure = false;
-    currBrewWeight = 25.6;
-    //weightBrew = 12.1;
 
-    // Show shot timer:
-    if (displayShottimer()) {
+    // Show fullscreen brew timer:
+    if (displayFullscreenBrewTimer()) {
+        // Display was updated, end here
+        return;
+    }
+
+    // Show fullscreen manual flush timer:
+    if (displayFullscreenManualFlushTimer()) {
         // Display was updated, end here
         return;
     }
@@ -76,6 +80,8 @@ void printScreen() {
     if (featureBrewControl) {
 
         if (shouldDisplayBrewTimer()) {
+            fakeWeight += 0.2;
+            currBrewWeight = fakeWeight;
             // time
             displayBrewTime(32, 36, langstring_brew, currBrewTime, totalTargetBrewTime);
 
@@ -84,6 +90,10 @@ void printScreen() {
             u8g2.drawBox(32, 27, 100, 10);
             u8g2.setDrawColor(1);
             displayBrewWeight(32, 26, currBrewWeight, targetBrewWeight, scaleFailure);
+        }
+        else {
+            currBrewWeight = 10.0;
+            fakeWeight = 0;
         }
         // Shown flush time while machine is flushing
         if (machineState == kManualFlush) {
