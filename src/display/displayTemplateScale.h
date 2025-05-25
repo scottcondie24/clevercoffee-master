@@ -13,6 +13,10 @@
  */
 void printScreen() {
 
+    scaleFailure = false;
+    weightBrew = 25.6;
+    weight = 12.1;
+
     // Show shot timer:
     if (displayShottimer()) {
         // Display was updated, end here
