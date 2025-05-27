@@ -84,31 +84,180 @@ void displayEmergencyStop(void) {
 }
 #endif
 
-/**
- * @brief display shot timer
- */
-bool displayShottimer() {
-    if (((timeBrewed > 0 && featureBrewControl == 0) || (featureBrewControl > 0 && currBrewState > kBrewIdle && currBrewState <= kBrewFinished)) && featureFullscreenBrewTimer == 1) {
-        u8g2.clearBuffer();
+bool shouldDisplayBrewTimer() {
 
-        u8g2.drawXBMP(0, 0, Brew_Cup_Logo_width, Brew_Cup_Logo_height, Brew_Cup_Logo);
-        u8g2.setFont(u8g2_font_profont22_tf);
-        u8g2.setCursor(5, 70);
-        u8g2.print(timeBrewed / 1000, 1);
-        u8g2.setFont(u8g2_font_profont11_tf);
-        u8g2.sendBuffer();
-        return true;
+    enum BrewTimerState {
+        kBrewTimerIdle = 10,
+        kBrewTimerRunning = 20,
+        kBrewTimerPostBrew = 30
+    };
+
+    static BrewTimerState currBrewTimerState = kBrewTimerIdle;
+
+    static uint32_t brewEndTime = 0;
+
+    switch (currBrewTimerState) {
+        case kBrewTimerIdle:
+            if (brew()) {
+                currBrewTimerState = kBrewTimerRunning;
+            }
+            break;
+
+        case kBrewTimerRunning:
+            if (!brew()) {
+                currBrewTimerState = kBrewTimerPostBrew;
+                brewEndTime = millis();
+            }
+            break;
+
+        case kBrewTimerPostBrew:
+            if ((millis() - brewEndTime) > (uint32_t)(postBrewTimerDuration * 1000)) {
+                currBrewTimerState = kBrewTimerIdle;
+            }
+            break;
     }
-    else if (featureFullscreenBrewTimer == 1 && millis() >= lastBrewTimeMillis && lastBrewTimeMillis + (postBrewTimerDuration * 1000) >= millis() && lastBrewTimeMillis < totalBrewTime) {
+
+    return (currBrewTimerState != kBrewTimerIdle);
+}
+
+/**
+ * @brief display fullscreen brew timer
+ */
+bool displayFullscreenBrewTimer() {
+    if (featureFullscreenBrewTimer == 0) {
+        return false;
+    }
+
+    if (shouldDisplayBrewTimer()) {
         u8g2.clearBuffer();
         u8g2.drawXBMP(0, 0, Brew_Cup_Logo_width, Brew_Cup_Logo_height, Brew_Cup_Logo);
-        u8g2.setFont(u8g2_font_profont22_tf);
-        u8g2.setCursor(5, 70);
-        u8g2.print((lastBrewTimeMillis - startingTime) / 1000, 1);
-        u8g2.setFont(u8g2_font_profont11_tf);
+        displayWaterIcon(55, 1);
+        if(FEATURE_SCALE) {
+            u8g2.setFont(u8g2_font_profont22_tf);
+            u8g2.setCursor(5, 50);
+            u8g2.print(timeBrewed / 1000, 1);
+            u8g2.setCursor(5, 75);
+            if (scaleFailure) {
+                u8g2.print("fault");
+            }
+            else {
+                u8g2.print(weightBrewed, 1);
+                    //if(featureBrewControl && weightSetpoint > 0) {
+                    //    u8g2.print("/");
+                    //    u8g2.print(weightSetpoint, 0);
+                    //}
+            }
+        }
+        else {
+            u8g2.setFont(u8g2_font_profont22_tf);
+            u8g2.setCursor(5, 70);
+            u8g2.print(timeBrewed / 1000, 1);
+        }
+
+        if(FEATURE_PRESSURESENSOR > 0) {
+            u8g2.setFont(u8g2_font_profont11_tf);
+            u8g2.setCursor(5, 100);
+            u8g2.print("P:");
+            u8g2.print(inputPressure, 2);
+            u8g2.setCursor(5, 115);
+            u8g2.print(DimmerPower,0);
+            u8g2.print(" ");
+            u8g2.print(setPressure,1);
+        }
         u8g2.sendBuffer();
         return true;
     }
 
     return false;
+}
+
+/**
+ * @brief display fullscreen manual flush timer
+ */
+bool displayFullscreenManualFlushTimer() {
+    if (featureFullscreenManualFlushTimer == 0) {
+        return false;
+    }
+
+    if (machineState == kManualFlush) {
+        u8g2.clearBuffer();
+        u8g2.drawXBMP(0, 0, Manual_Flush_Logo_width, Manual_Flush_Logo_height, Manual_Flush_Logo);
+        u8g2.setFont(u8g2_font_profont22_tf);
+        u8g2.setCursor(5, 70);
+        u8g2.print(timeBrewed / 1000, 1);
+        u8g2.setFont(u8g2_font_profont11_tf);
+        displayWaterIcon(55, 1);
+        u8g2.sendBuffer();
+        return true;
+    }
+
+    return false;
+}
+
+void displayScrollingSubstring(int x, int y, int displayWidth, const char* text, bool bounce) {
+    static int offset = 0;
+    static int direction = 1;
+    static unsigned long lastUpdate = 0;
+    static unsigned long interval = 100;
+    static const char* lastText = nullptr;
+
+    // Reset if text has changed
+    if (lastText != text) {
+        offset = 0;
+        direction = 1;
+        lastText = text;
+        interval = 500;
+        lastUpdate = millis();
+    }
+    else if (offset > 0) {
+        interval = 100;
+    }
+
+    int textLen = strlen(text);
+    int fullTextWidth = u8g2.getStrWidth(text);
+
+    //limit display width
+    if ((displayWidth == 0)||(displayWidth + x > SCREEN_HEIGHT)) {
+        displayWidth = SCREEN_HEIGHT - x;
+    }
+
+    // No scrolling needed
+    if (fullTextWidth <= displayWidth) {
+        u8g2.drawStr(x, y, text);
+        return;
+    }
+
+    // Scroll logic
+    if (millis() - lastUpdate > interval) {
+        lastUpdate = millis();
+        if (bounce) {
+            offset += direction;
+            if (offset < 0 || u8g2.getStrWidth(&text[offset]) < displayWidth) {
+                direction = -direction;
+                offset += direction;
+            }
+        } else {
+            offset++;
+            if (offset >= u8g2.getStrWidth(&text[offset])) {
+                offset = 0;
+            }
+        }
+    }
+
+    // Determine how many characters fit
+    int visibleWidth = 0;
+    int end = offset;
+    while (end < textLen && visibleWidth < displayWidth) {
+        char buf[2] = {text[end], '\0'};
+        visibleWidth += u8g2.getStrWidth(buf);
+        if (visibleWidth > displayWidth) break;
+        end++;
+    }
+
+    // Copy visible substring
+    char visible[64] = {0};
+    strncpy(visible, &text[offset], end - offset);
+    visible[end - offset] = '\0';
+
+    u8g2.drawStr(x, y, visible);
 }
