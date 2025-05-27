@@ -62,7 +62,7 @@ void printScreen() {
     u8g2.print("C");
 
     // Show current weight if scale has no error
-    displayBrewWeight(32, 26, currBrewWeight, -1, scaleFailure);
+    displayBrewWeight(32, 26, currReadingWeight, -1, scaleFailure);
 
     /**
      * @brief Shot timer for scale
@@ -107,7 +107,7 @@ void printScreen() {
         // Brew Timer with optocoupler
         if (shouldDisplayBrewTimer()) {
             // time
-            displayBrewTime(32, 36, langstring_manual_flush, currBrewTime);
+            displayBrewTime(32, 36, langstring_brew, currBrewTime);
 
             // weight
             u8g2.setDrawColor(0);

@@ -237,7 +237,7 @@ bool brew() {
             totalTargetBrewTime = (preinfusion * 1000) + (preinfusionPause * 1000) + (targetBrewTime * 1000);
         }
         else {
-            // Stop by time deactivated --> brewTime = 0
+            // Stop by time deactivated --> totalTargetBrewTime = 0
             totalTargetBrewTime = 0;
         }
 

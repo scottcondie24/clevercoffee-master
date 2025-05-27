@@ -181,23 +181,23 @@ bool shouldDisplayBrewTimer() {
 /**
  * @brief Draw current brew time with optional brew target time at given position
  *
- * Shows the current brew time in seconds. If a target time (totalbrewtime) is provided (> 0), it is displayed alongside the current time.
+ * Shows the current brew time in seconds. If a target time (totalTargetBrewTime) is provided (> 0), it is displayed alongside the current time.
  *
  * @param x              Horizontal position to start drawing
  * @param y              Vertical position to start drawing
  * @param label          Text label to display before the time
- * @param timeBrewed     Current brewed time in milliseconds
- * @param totalbrewtime  Target brew time in milliseconds (optional, default -1)
+ * @param currBrewTime     Current brewed time in milliseconds
+ * @param totalTargetBrewTime  Target brew time in milliseconds (optional, default -1)
  */
-void displayBrewTime(int x, int y, const char* label, double timeBrewed, double totalBrewTime = -1) {
+void displayBrewTime(int x, int y, const char* label, double currBrewTime, double totalTargetBrewTime = -1) {
     u8g2.setCursor(x, y);
     u8g2.print(label);
     u8g2.setCursor(x + 50, y);
-    u8g2.print(timeBrewed / 1000, 0);
+    u8g2.print(currBrewTime / 1000, 0);
 
-    if (totalBrewTime > 0) {
+    if (totalTargetBrewTime > 0) {
         u8g2.print("/");
-        u8g2.print(totalBrewTime / 1000, 0);
+        u8g2.print(totalTargetBrewTime / 1000, 0);
     }
 
     u8g2.print(" s");
@@ -426,7 +426,7 @@ bool displayFullscreenBrewTimer() {
         u8g2.print("g");
         u8g2.setFont(u8g2_font_profont11_tf);
 #else
-        displayBrewtimeFs(48, 25, timeBrewed);
+        displayBrewtimeFs(48, 25, currBrewTime);
 #endif
         displayWaterIcon(119, 1);
         u8g2.sendBuffer();

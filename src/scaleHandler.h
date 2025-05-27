@@ -80,7 +80,7 @@ void checkWeight() {
 #if SCALE_TYPE == 0
     currReadingWeight = w1 + w2;
 #else
-    currWeight = w1;
+    currReadingWeight = w1;
 #endif
 
     if (scaleCalibrationOn) {
