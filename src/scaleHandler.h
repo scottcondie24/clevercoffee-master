@@ -138,7 +138,7 @@ void initScale() {
 
     if (LoadCell.getTareTimeoutFlag() || LoadCell.getSignalTimeoutFlag()) {
         LOG(ERROR, "Timeout, check MCU>HX711 wiring for scale");
-        displayScaleFailed();
+        displayScaleFailed();// scale timeout will most likely trigger after OTA update, but will still work after boot
         delay(5000);
         scaleFailure = true;
         return;
@@ -147,7 +147,7 @@ void initScale() {
 #if SCALE_TYPE == 0
     if (LoadCell2.getTareTimeoutFlag() || LoadCell2.getSignalTimeoutFlag()) {
         LOG(ERROR, "Timeout, check MCU>HX711 wiring for scale 2");
-        displayScaleFailed();
+        displayScaleFailed();// scale timeout will most likely trigger after OTA update, but will still work after boot
         delay(5000);
         scaleFailure = true;
         return;
