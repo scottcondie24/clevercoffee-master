@@ -17,7 +17,7 @@ TempSensorTSIC::TempSensorTSIC(int GPIOPin) {
 }
 
 bool TempSensorTSIC::sample_temperature(double& temperature) const {
-    temperature = 95.1;
+    temperature = 95.0;
     return true;
     
     auto temp = tsicSensor_->getTemp(MAX_CHANGERATE);
