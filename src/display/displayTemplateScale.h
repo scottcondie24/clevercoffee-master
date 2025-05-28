@@ -60,7 +60,7 @@ void printScreen() {
     u8g2.print(setpoint, 1);
     u8g2.print((char)176);
     u8g2.print("C");
-
+    currReadingWeight = 17.0;
     // Show current weight if scale has no error
     displayBrewWeight(32, 26, currReadingWeight, -1, scaleFailure);
 
@@ -111,7 +111,7 @@ void printScreen() {
 
             // weight
             u8g2.setDrawColor(0);
-            u8g2.drawBox(32, 27, 100, 9);
+            u8g2.drawBox(32, 27, 100, 10);
             u8g2.setDrawColor(1);
             displayBrewWeight(32, 26, currBrewWeight, -1, scaleFailure);
         }
