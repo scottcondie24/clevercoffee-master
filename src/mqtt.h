@@ -234,6 +234,7 @@ int writeSysParamsToMQTT(bool continueOnError = true) {
     
     if ((currentMillisMQTT - previousMillisMQTT >= interval) && FEATURE_MQTT == 1) {
         previousMillisMQTT = currentMillisMQTT;
+        mqtt_update = true;
 
         if (mqtt.connected()) {
             mqtt_publish("status", (char*)"online");
@@ -519,6 +520,7 @@ DiscoveryObject GenerateNumberDevice(String name, String displayName, int min_va
  * @return 0 if successful, MQTT connection error code if failed to send messages
  */
 int sendHASSIODiscoveryMsg() {
+    HASSIO_update = true;
     // Number Devices
     DiscoveryObject brewSetpoint = GenerateNumberDevice("brewSetpoint", "Brew setpoint", BREW_SETPOINT_MIN, BREW_SETPOINT_MAX, 0.1, "°C");
     DiscoveryObject steamSetPoint = GenerateNumberDevice("steamSetpoint", "Steam setpoint", STEAM_SETPOINT_MIN, STEAM_SETPOINT_MAX, 0.1, "°C");
