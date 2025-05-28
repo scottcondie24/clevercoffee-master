@@ -12,6 +12,9 @@
  * @brief Send data to display
  */
 void printScreen() {
+    static float fakeWeight = 0.0;
+    scaleFailure = false;
+    static float weight = 22.3;
 
     // Show fullscreen brew timer:
     if (displayFullscreenBrewTimer()) {
@@ -78,6 +81,8 @@ void printScreen() {
     if (featureBrewControl) {
 
         if (shouldDisplayBrewTimer()) {
+            fakeWeight += 0.2;
+            currBrewWeight = fakeWeight;
             // time
             displayBrewTime(32, 36, langstring_brew, currBrewTime, totalTargetBrewTime);
 

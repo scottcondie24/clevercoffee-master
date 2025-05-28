@@ -177,6 +177,13 @@ int writeSysParamsToMQTT(bool continueOnError);
 void updateStandbyTimer(void);
 void resetStandbyTimer(void);
 void wiFiReset(void);
+void printLoopTimingsAsList(void);
+void loopdebugtiming(void);
+
+//debug timings
+const int LOOP_HISTORY_SIZE = 20;
+unsigned long loopTimings[LOOP_HISTORY_SIZE];
+unsigned long previousMillisDebug = 0;
 
 // system parameters
 uint8_t pidON = 0;   // 1 = control loop in closed loop
@@ -1520,6 +1527,7 @@ void setup() {
     windowStartTime = currentTime;
     previousMillisMQTT = currentTime;
     lastMQTTConnectionAttempt = currentTime;
+    previousMillisDebug = currentTime;
 
 #if FEATURE_SCALE == 1
     previousMillisScale = currentTime;
@@ -1549,6 +1557,45 @@ void loop() {
 
     // Update LED output based on machine state
     loopLED();
+
+    //debug timing
+    loopdebugtiming();
+}
+
+void loopdebugtiming(void) {
+    static int loopIndex = 0;
+    static int maxloop = 0;
+    unsigned long loopDuration = millis() - previousMillisDebug;
+    previousMillisDebug = millis();
+    loopTimings[loopIndex] = loopDuration;
+    if (loopDuration >= maxloop) {// && loopDuration < 100000) {
+        maxloop = loopDuration;
+    }
+    loopIndex = (loopIndex + 1) % LOOP_HISTORY_SIZE;
+    if((loopIndex == 0)&&(maxloop > 30)){
+        printLoopTimingsAsList();
+        maxloop = 0;
+    }
+}
+
+void printLoopTimingsAsList() {
+  char buffer[512];  // Make sure this is large enough
+  int len = 0;
+  static int maxloop = 0;
+  maxloop = 0;
+  len += snprintf(buffer + len, sizeof(buffer) - len, "Loop timings (us): [");
+  for (int i = 0; i < LOOP_HISTORY_SIZE; i++) {
+    if (loopTimings[i] >= maxloop) {
+        maxloop = loopTimings[i];
+    }
+    len += snprintf(buffer + len, sizeof(buffer) - len, "%lu", loopTimings[i]);
+    if (i < LOOP_HISTORY_SIZE - 1) {
+      len += snprintf(buffer + len, sizeof(buffer) - len, ", ");
+    }
+  }
+  len += snprintf(buffer + len, sizeof(buffer) - len, "]");
+  LOGF(DEBUG, "Max loop %i", maxloop);
+  LOGF(DEBUG, "%s", buffer);
 }
 
 void looppid() {
