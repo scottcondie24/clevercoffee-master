@@ -151,6 +151,13 @@ const unsigned long intervalPressure = 100;
 unsigned long previousMillisPressure; // initialisation at the end of init()
 #endif
 
+//Loop boolean identifiers
+bool buffer_ready = false;
+bool display_update = false;
+bool website_update = false;
+bool mqtt_update = false;
+bool HASSIO_update = false;
+
 Switch* waterTankSensor;
 
 GPIOPin* statusLedPin;
@@ -202,10 +209,19 @@ void updateStandbyTimer(void);
 void resetStandbyTimer(void);
 void wiFiReset(void);
 void printLoopTimingsAsList(void);
+void printActivityTypeAsList(void);
+void debugTimingLoop(void);
 
 //debug timings
 const int LOOP_HISTORY_SIZE = 20;
 unsigned long loopTimings[LOOP_HISTORY_SIZE];
+unsigned int activityType[LOOP_HISTORY_SIZE];
+unsigned long currentMillisDebug = 0;
+unsigned long lastSendMillisDebug = 0;
+unsigned long debugInterval = 1000;
+unsigned int loopIndex = 0;
+unsigned long maxloop = 0;
+
 
 // system parameters
 uint8_t pidON = 0; // 1 = control loop in closed loop
@@ -364,7 +380,7 @@ unsigned long lastTempEvent = 0;
 unsigned long tempEventInterval = 1000;
 
 #if MQTT_HASSIO_SUPPORT == 1
-Timer hassioDiscoveryTimer(&sendHASSIODiscoveryMsg, 300000);
+Timer hassioDiscoveryTimer(&sendHASSIODiscoveryMsg, 10000);
 #endif
 
 bool mqtt_was_connected = false;
@@ -1782,9 +1798,6 @@ void setup() {
 }
 
 void loop() {
-    static unsigned long currentMillisDebug = 0;
-    static int loopIndex = 0;
-    static int maxloop = 0;
     // Accept potential connections for remote logging
     Logger::update();
 
@@ -1797,18 +1810,7 @@ void loop() {
     // Update LED output based on machine state
     loopLED();
 
-    //debug timing
-    unsigned long loopDuration = millis() - currentMillisDebug;
-    currentMillisDebug = millis();
-    loopTimings[loopIndex] = loopDuration;
-    if (loopDuration >= maxloop) {// && loopDuration < 100000) {
-        maxloop = loopDuration;
-    }
-    loopIndex = (loopIndex + 1) % LOOP_HISTORY_SIZE;
-    if((loopIndex == 0)&&(maxloop > 30)){
-        printLoopTimingsAsList();
-        maxloop = 0;
-    }
+    debugTimingLoop();
 }
 
 void printLoopTimingsAsList() {
@@ -1825,6 +1827,51 @@ void printLoopTimingsAsList() {
   LOGF(DEBUG, "%s", buffer);
 }
 
+void printActivityTypeAsList() {
+  char buffer[512];  // Make sure this is large enough
+  int len = 0;
+  len += snprintf(buffer + len, sizeof(buffer) - len, "Activity Type: [");
+  for (int i = 0; i < LOOP_HISTORY_SIZE; i++) {
+    len += snprintf(buffer + len, sizeof(buffer) - len, "%lu", activityType[i]);
+    if (i < LOOP_HISTORY_SIZE - 1) {
+      len += snprintf(buffer + len, sizeof(buffer) - len, ", ");
+    }
+  }
+  len += snprintf(buffer + len, sizeof(buffer) - len, "]");
+  LOGF(DEBUG, "%s", buffer);
+}
+
+void debugTimingLoop() {
+    unsigned long loopDuration = millis() - currentMillisDebug;
+    currentMillisDebug = millis();
+    if((loopDuration > 35)||(display_update||website_update||mqtt_update||HASSIO_update)) {
+        if (loopDuration >= maxloop) {// && loopDuration < 100000) {
+            maxloop = loopDuration;
+        }
+        loopTimings[loopIndex] = loopDuration;
+        activityType[loopIndex] = 0;
+        if(buffer_ready) activityType[loopIndex]+= 1;
+        if(display_update) activityType[loopIndex]+= 10;
+        if(website_update) activityType[loopIndex]+= 100;
+        if(mqtt_update) activityType[loopIndex]+= 1000;
+        if(HASSIO_update) activityType[loopIndex]+= 10000;
+        display_update = false;
+        website_update = false;
+        mqtt_update = false;
+        HASSIO_update = false;
+
+        loopIndex = (loopIndex + 1) % LOOP_HISTORY_SIZE;
+        if(loopIndex == 0){
+            printLoopTimingsAsList();
+            printActivityTypeAsList();
+            unsigned long reportTime = millis() - lastSendMillisDebug;
+            unsigned long maxResult = maxloop;
+            LOGF(DEBUG, "Max time %lu -- 20 entries report time %lu (ms)", maxResult, reportTime);
+            lastSendMillisDebug = millis();
+            maxloop = 0;
+        }
+    }
+}
 void looppid() {
     // Only do Wifi stuff, if Wifi is connected
     if (WiFi.status() == WL_CONNECTED && offlineMode == 0) {
@@ -1835,9 +1882,13 @@ void looppid() {
             if (mqtt.connected() == 1) {
                 mqtt.loop();
 #if MQTT_HASSIO_SUPPORT == 1
-                hassioDiscoveryTimer();
+                //resend discovery messages if not during a main function and MQTT has been disconnected but has now reconnected
+                //this could mean mqtt_was_connected stays false for up to 5 mins, could change it to sendHASSIODiscoveryMsg();
+                if(!((machineState >= kBrew) && (machineState <= kBackflush)) && (!mqtt_was_connected)) {
+                    hassioDiscoveryTimer();
+                    mqtt_was_connected = true;
+                }
 #endif
-                mqtt_was_connected = true;
             }
             // Supress debug messages until we have a connection etablished
             else if (mqtt_was_connected) {
@@ -1875,8 +1926,9 @@ void looppid() {
     testEmergencyStop(); // test if temp is too high
     bPID.Compute();      // the variable pidOutput now has new values from PID (will be written to heater pin in ISR.cpp)
 
-    if ((millis() - lastTempEvent) > tempEventInterval) {
+    if (((millis() - lastTempEvent) > tempEventInterval)&&(!mqtt_update)&&(!HASSIO_update)) {
         // send temperatures to website endpoint
+        website_update = true;
         sendTempEvent(temperature, brewSetpoint, pidOutput / 10); // pidOutput is promill, so /10 to get percent value
         lastTempEvent = millis();
 
@@ -1941,7 +1993,16 @@ void looppid() {
 
     // Check if PID should run or not. If not, set to manual and force output to zero
 #if OLED_DISPLAY != 0
-    printDisplayTimer();
+    if((!website_update)&&(!mqtt_update)&&(!HASSIO_update)&&(standbyModeRemainingTimeDisplayOffMillis > 0)) {
+        if(buffer_ready) {
+            u8g2.sendBuffer();
+            buffer_ready = false;
+            display_update = true;
+        }
+        else {
+            printDisplayTimer();
+        }
+    }
 #endif
 
     if (machineState == kPidDisabled || machineState == kWaterTankEmpty || machineState == kSensorError || machineState == kEmergencyStop || machineState == kEepromError || machineState == kStandby || brewPIDDisabled) {
