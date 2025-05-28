@@ -1799,6 +1799,7 @@ void loop() {
 
     //debug timing
     unsigned long loopDuration = millis() - currentMillisDebug;
+    currentMillisDebug = millis();
     loopTimings[loopIndex] = loopDuration;
     if (loopDuration >= maxloop) {// && loopDuration < 100000) {
         maxloop = loopDuration;
@@ -1813,7 +1814,7 @@ void loop() {
 void printLoopTimingsAsList() {
   char buffer[512];  // Make sure this is large enough
   int len = 0;
-  len += snprintf(buffer + len, sizeof(buffer) - len, "Loop timings (us): [");
+  len += snprintf(buffer + len, sizeof(buffer) - len, "Loop timings (ms): [");
   for (int i = 0; i < LOOP_HISTORY_SIZE; i++) {
     len += snprintf(buffer + len, sizeof(buffer) - len, "%lu", loopTimings[i]);
     if (i < LOOP_HISTORY_SIZE - 1) {
