@@ -12,6 +12,9 @@
  * @brief Send data to display
  */
 void printScreen() {
+    static float fakeWeight = 0.0;
+    scaleFailure = false;
+    static float weight = 22.3;
 
     // Show shot timer:
     if (displayShottimer()) {
@@ -59,9 +62,13 @@ void printScreen() {
     }
     else {
         if (machineState == kBrew) {
+            fakeWeight += 0.2;
+            weightBrew = fakeWeight;
             u8g2.print(weightBrew, 0);
         }
         else {
+            weightBrew = 10.0;
+            fakeWeight = 0;
             u8g2.print(weight, 0);
         }
 
