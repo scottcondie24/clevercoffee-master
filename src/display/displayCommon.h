@@ -599,4 +599,14 @@ bool displayMachineState() {
 
     return false;
 }
+
+/**
+ * @brief print error message for scales
+ */
+void displayScaleFailed(void) {
+    u8g2.clearBuffer();
+    u8g2.drawStr(0, 32, "failed!");
+    u8g2.drawStr(0, 42, "Scale not working..."); // scale timeout will most likely trigger after OTA update, but will still work after boot
+    u8g2.sendBuffer();
+}
 #endif
