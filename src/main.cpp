@@ -202,10 +202,12 @@ void updateStandbyTimer(void);
 void resetStandbyTimer(void);
 void wiFiReset(void);
 void printLoopTimingsAsList(void);
+void loopdebugtiming(void);
 
 //debug timings
 const int LOOP_HISTORY_SIZE = 20;
 unsigned long loopTimings[LOOP_HISTORY_SIZE];
+unsigned long previousMillisDebug = 0;
 
 // system parameters
 uint8_t pidON = 0; // 1 = control loop in closed loop
@@ -1764,6 +1766,7 @@ void setup() {
     previousMillisMQTT = currentTime;
     previousMillisOptocouplerReading = currentTime;
     lastMQTTConnectionAttempt = currentTime;
+    previousMillisDebug = currentTime;
 
 #if FEATURE_SCALE == 1
     previousMillisScale = currentTime;
@@ -1782,9 +1785,6 @@ void setup() {
 }
 
 void loop() {
-    static unsigned long currentMillisDebug = 0;
-    static int loopIndex = 0;
-    static int maxloop = 0;
     // Accept potential connections for remote logging
     Logger::update();
 
@@ -1798,7 +1798,14 @@ void loop() {
     loopLED();
 
     //debug timing
-    unsigned long loopDuration = millis() - currentMillisDebug;
+    loopdebugtiming();
+}
+
+void loopdebugtiming(void) {
+    static int loopIndex = 0;
+    static int maxloop = 0;
+    unsigned long loopDuration = millis() - previousMillisDebug;
+    previousMillisDebug = millis();
     loopTimings[loopIndex] = loopDuration;
     if (loopDuration >= maxloop) {// && loopDuration < 100000) {
         maxloop = loopDuration;
@@ -1813,14 +1820,20 @@ void loop() {
 void printLoopTimingsAsList() {
   char buffer[512];  // Make sure this is large enough
   int len = 0;
+  static int maxloop = 0;
+  maxloop = 0;
   len += snprintf(buffer + len, sizeof(buffer) - len, "Loop timings (us): [");
   for (int i = 0; i < LOOP_HISTORY_SIZE; i++) {
+    if (loopTimings[i] >= maxloop) {
+        maxloop = loopTimings[i];
+    }
     len += snprintf(buffer + len, sizeof(buffer) - len, "%lu", loopTimings[i]);
     if (i < LOOP_HISTORY_SIZE - 1) {
       len += snprintf(buffer + len, sizeof(buffer) - len, ", ");
     }
   }
   len += snprintf(buffer + len, sizeof(buffer) - len, "]");
+  LOGF(DEBUG, "Max loop %i", maxloop);
   LOGF(DEBUG, "%s", buffer);
 }
 
