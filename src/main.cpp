@@ -216,11 +216,13 @@ void debugTimingLoop(void);
 const int LOOP_HISTORY_SIZE = 20;
 unsigned long loopTimings[LOOP_HISTORY_SIZE];
 unsigned int activityType[LOOP_HISTORY_SIZE];
-unsigned long currentMillisDebug = 0;
+unsigned long previousMillisDebug = 0;
 unsigned long lastSendMillisDebug = 0;
 unsigned long debugInterval = 1000;
 unsigned int loopIndex = 0;
 unsigned long maxloop = 0;
+unsigned long maxmqtt = 0;
+unsigned long mqttMicrosDebug = 0;
 
 
 // system parameters
@@ -1780,6 +1782,7 @@ void setup() {
     previousMillisMQTT = currentTime;
     previousMillisOptocouplerReading = currentTime;
     lastMQTTConnectionAttempt = currentTime;
+    previousMillisDebug = currentTime;
 
 #if FEATURE_SCALE == 1
     previousMillisScale = currentTime;
@@ -1842,8 +1845,8 @@ void printActivityTypeAsList() {
 }
 
 void debugTimingLoop() {
-    unsigned long loopDuration = millis() - currentMillisDebug;
-    currentMillisDebug = millis();
+    unsigned long loopDuration = millis() - previousMillisDebug;
+    previousMillisDebug = millis();
     if((loopDuration > 35)||(display_update||website_update||mqtt_update||HASSIO_update)) {
         if (loopDuration >= maxloop) {// && loopDuration < 100000) {
             maxloop = loopDuration;
@@ -1867,6 +1870,10 @@ void debugTimingLoop() {
             unsigned long reportTime = millis() - lastSendMillisDebug;
             unsigned long maxResult = maxloop;
             LOGF(DEBUG, "Max time %lu -- 20 entries report time %lu (ms)", maxResult, reportTime);
+            if(maxmqtt > 0) {
+                LOGF(DEBUG, "Max mqtt time %lu (us)", maxmqtt);
+                maxmqtt = 0;
+            }
             lastSendMillisDebug = millis();
             maxloop = 0;
         }
