@@ -18,7 +18,7 @@ std::map<std::string, std::string> mqttLastSent;
 
 unsigned long previousMillisMQTT;
 const unsigned long intervalMQTT = 5000;
-const unsigned long intervalMQTTbrew = 500;
+const unsigned long intervalMQTTbrew = 5000;
 const unsigned long intervalMQTTstandby = 10000;
 
 WiFiClient net;
@@ -225,6 +225,86 @@ void mqtt_callback(char* topic, byte* data, unsigned int length) {
  * @return 0 = success, MQTT error code = failure
  */
 int writeSysParamsToMQTT(bool continueOnError = true) {
+/*    unsigned long currentMillisMQTT = millis();
+
+    if ((currentMillisMQTT - previousMillisMQTT >= intervalMQTT) && FEATURE_MQTT == 1) {
+        previousMillisMQTT = currentMillisMQTT;
+        mqtt_update = true;
+        maxmqtt = 0;
+
+        if (mqtt.connected()) {
+            mqtt_publish("status", (char*)"online");
+
+            int errorState = 0;
+
+            for (const auto& pair : mqttVars) {
+                mqttMicrosDebug = micros();
+                editable_t* e = pair.second();
+
+                switch (e->type) {
+                    case kFloat:
+                        if (!mqtt_publish(pair.first, number2string(*(float*)e->ptr), true)) {
+                            errorState = mqtt.state();
+                        }
+                        break;
+                    case kDouble:
+                        if (!mqtt_publish(pair.first, number2string(*(double*)e->ptr), true)) {
+                            errorState = mqtt.state();
+                        }
+                        break;
+                    case kDoubletime:
+                        if (!mqtt_publish(pair.first, number2string(*(double*)e->ptr), true)) {
+                            errorState = mqtt.state();
+                        }
+                        break;
+
+                    case kInteger:
+                        if (!mqtt_publish(pair.first, number2string(*(int*)e->ptr), true)) {
+                            errorState = mqtt.state();
+                        }
+                        break;
+
+                    case kUInt8:
+                        if (!mqtt_publish(pair.first, number2string(*(uint8_t*)e->ptr), true)) {
+                            errorState = mqtt.state();
+                        }
+                        break;
+
+                    case kCString:
+                        if (!mqtt_publish(pair.first, number2string(*(char*)e->ptr), true)) {
+                            errorState = mqtt.state();
+                        }
+                        break;
+                }
+
+                if (errorState != 0 && !continueOnError) {
+                    // An error occurred and continueOnError is false, return the error state
+                    return errorState;
+                }
+                unsigned long mqttmicros = micros() - mqttMicrosDebug;
+                if (mqttmicros > maxmqtt) {
+                    maxmqtt = mqttmicros;
+                }
+            }
+
+            for (const auto& pair : mqttSensors) {
+                if (!mqtt_publish(pair.first, number2string(pair.second()))) {
+                    errorState = mqtt.state();
+                }
+
+                if (errorState != 0 && !continueOnError) {
+                    // An error occurred and continueOnError is false, return the error state
+                    return errorState;
+                }
+            }
+        }
+    }
+
+    return 0;*/
+    
+
+
+    
     unsigned long currentMillisMQTT = millis();
     
     unsigned long interval =
@@ -235,6 +315,7 @@ int writeSysParamsToMQTT(bool continueOnError = true) {
     if ((currentMillisMQTT - previousMillisMQTT >= interval) && FEATURE_MQTT == 1) {
         previousMillisMQTT = currentMillisMQTT;
         mqtt_update = true;
+        maxmqtt = 0;
 
         if (mqtt.connected()) {
             mqtt_publish("status", (char*)"online");
@@ -243,6 +324,7 @@ int writeSysParamsToMQTT(bool continueOnError = true) {
             char buffer[32]; // shared buffer for snprintf
 
             for (const auto& pair : mqttVars) {
+                mqttMicrosDebug = micros();
                 editable_t* e = pair.second();
 
                 switch (e->type) {
@@ -280,6 +362,10 @@ int writeSysParamsToMQTT(bool continueOnError = true) {
                         }
                     }
                 }
+                unsigned long mqttmicros = micros() - mqttMicrosDebug;
+                if (mqttmicros > maxmqtt) {
+                    maxmqtt = mqttmicros;
+                }
             }
 
             // === mqttSensors loop ===
@@ -304,7 +390,7 @@ int writeSysParamsToMQTT(bool continueOnError = true) {
     }
 
     return 0;
-}
+} 
 
 /**
  * @brief Generate a switch device for Home Assistant MQTT discovery
