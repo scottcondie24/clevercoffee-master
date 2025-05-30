@@ -1804,21 +1804,21 @@ void printActivityTypeAsList() {
 void debugTimingLoop() {
     unsigned long loopDuration = millis() - previousMillisDebug;
     previousMillisDebug = millis();
-    if((loopDuration > 35)||(display_update||website_update||mqtt_update||HASSIO_update)) {
+    if((loopDuration > 35)||(displayUpdateRunning||websiteUpdateRunning||mqttUpdateRunning||hassioUpdateRunning)) {
         if (loopDuration >= maxloop) {// && loopDuration < 100000) {
             maxloop = loopDuration;
         }
         loopTimings[loopIndex] = loopDuration;
         activityType[loopIndex] = 0;
-        if(buffer_ready) activityType[loopIndex]+= 1;
-        if(display_update) activityType[loopIndex]+= 10;
-        if(website_update) activityType[loopIndex]+= 100;
-        if(mqtt_update) activityType[loopIndex]+= 1000;
-        if(HASSIO_update) activityType[loopIndex]+= 10000;
-        display_update = false;
-        website_update = false;
-        mqtt_update = false;
-        HASSIO_update = false;
+        if(displayBufferReady) activityType[loopIndex]+= 1;
+        if(displayUpdateRunning) activityType[loopIndex]+= 10;
+        if(websiteUpdateRunning) activityType[loopIndex]+= 100;
+        if(mqttUpdateRunning) activityType[loopIndex]+= 1000;
+        if(hassioUpdateRunning) activityType[loopIndex]+= 10000;
+        displayUpdateRunning = false;
+        websiteUpdateRunning = false;
+        mqttUpdateRunning = false;
+        hassioUpdateRunning = false;
 
         loopIndex = (loopIndex + 1) % LOOP_HISTORY_SIZE;
         if(loopIndex == 0){
@@ -1902,7 +1902,7 @@ void looppid() {
     if (((millis() - lastTempEvent) > tempEventInterval) && (!mqttUpdateRunning) && (!hassioUpdateRunning)) {
         websiteUpdateRunning = true;
         // send temperatures to website endpoint
-        website_update = true;
+        websiteUpdateRunning = true;
         sendTempEvent(temperature, brewSetpoint, pidOutput / 10); // pidOutput is promill, so /10 to get percent value
         lastTempEvent = millis();
 
