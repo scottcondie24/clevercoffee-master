@@ -10,15 +10,15 @@
 #include "userConfig.h"
 #include <Arduino.h>
 #include <PubSubClient.h>
-#include <os.h>
 #include <map>
+#include <os.h>
 #include <string>
 
 std::map<std::string, std::string> mqttLastSent;
 
 unsigned long previousMillisMQTT;
 const unsigned long intervalMQTT = 5000;
-const unsigned long intervalMQTTbrew = 5000;
+const unsigned long intervalMQTTbrew = 500;
 const unsigned long intervalMQTTstandby = 10000;
 
 WiFiClient net;
@@ -225,97 +225,12 @@ void mqtt_callback(char* topic, byte* data, unsigned int length) {
  * @return 0 = success, MQTT error code = failure
  */
 int writeSysParamsToMQTT(bool continueOnError = true) {
-/*    unsigned long currentMillisMQTT = millis();
-
-    if ((currentMillisMQTT - previousMillisMQTT >= intervalMQTT) && FEATURE_MQTT == 1) {
-        previousMillisMQTT = currentMillisMQTT;
-        mqtt_update = true;
-        maxmqtt = 0;
-
-        if (mqtt.connected()) {
-            mqtt_publish("status", (char*)"online");
-
-            int errorState = 0;
-
-            for (const auto& pair : mqttVars) {
-                mqttMicrosDebug = micros();
-                editable_t* e = pair.second();
-
-                switch (e->type) {
-                    case kFloat:
-                        if (!mqtt_publish(pair.first, number2string(*(float*)e->ptr), true)) {
-                            errorState = mqtt.state();
-                        }
-                        break;
-                    case kDouble:
-                        if (!mqtt_publish(pair.first, number2string(*(double*)e->ptr), true)) {
-                            errorState = mqtt.state();
-                        }
-                        break;
-                    case kDoubletime:
-                        if (!mqtt_publish(pair.first, number2string(*(double*)e->ptr), true)) {
-                            errorState = mqtt.state();
-                        }
-                        break;
-
-                    case kInteger:
-                        if (!mqtt_publish(pair.first, number2string(*(int*)e->ptr), true)) {
-                            errorState = mqtt.state();
-                        }
-                        break;
-
-                    case kUInt8:
-                        if (!mqtt_publish(pair.first, number2string(*(uint8_t*)e->ptr), true)) {
-                            errorState = mqtt.state();
-                        }
-                        break;
-
-                    case kCString:
-                        if (!mqtt_publish(pair.first, number2string(*(char*)e->ptr), true)) {
-                            errorState = mqtt.state();
-                        }
-                        break;
-                }
-
-                if (errorState != 0 && !continueOnError) {
-                    // An error occurred and continueOnError is false, return the error state
-                    return errorState;
-                }
-                unsigned long mqttmicros = micros() - mqttMicrosDebug;
-                if (mqttmicros > maxmqtt) {
-                    maxmqtt = mqttmicros;
-                }
-            }
-
-            for (const auto& pair : mqttSensors) {
-                if (!mqtt_publish(pair.first, number2string(pair.second()))) {
-                    errorState = mqtt.state();
-                }
-
-                if (errorState != 0 && !continueOnError) {
-                    // An error occurred and continueOnError is false, return the error state
-                    return errorState;
-                }
-            }
-        }
-    }
-
-    return 0;*/
-    
-
-
-    
     unsigned long currentMillisMQTT = millis();
-    
-    unsigned long interval =
-        (machineState == kBrew)    ? intervalMQTTbrew :
-        (machineState == kStandby) ? intervalMQTTstandby :
-                                     intervalMQTT;
-    
+    unsigned long interval = (machineState == kBrew) ? intervalMQTTbrew : (machineState == kStandby) ? intervalMQTTstandby : intervalMQTT;
+
     if ((currentMillisMQTT - previousMillisMQTT >= interval) && FEATURE_MQTT == 1) {
         previousMillisMQTT = currentMillisMQTT;
-        mqtt_update = true;
-        maxmqtt = 0;
+        mqttUpdateRunning = true;
 
         if (mqtt.connected()) {
             mqtt_publish("status", (char*)"online");
@@ -354,17 +269,14 @@ int writeSysParamsToMQTT(bool continueOnError = true) {
                 if (mqttLastSent[topic] != value) {
                     if (mqtt_publish(topic.c_str(), buffer, true)) {
                         mqttLastSent[topic] = value; // Update only if sent successfully
-                    } else {
+                    }
+                    else {
                         errorState = mqtt.state();
                         if (errorState != 0 && !continueOnError) {
                             // An error occurred and continueOnError is false, return the error state
                             return errorState;
                         }
                     }
-                }
-                unsigned long mqttmicros = micros() - mqttMicrosDebug;
-                if (mqttmicros > maxmqtt) {
-                    maxmqtt = mqttmicros;
                 }
             }
 
@@ -377,7 +289,8 @@ int writeSysParamsToMQTT(bool continueOnError = true) {
                 if (mqttLastSent[topic] != value) {
                     if (mqtt_publish(topic.c_str(), buffer)) {
                         mqttLastSent[topic] = value;
-                    } else {
+                    }
+                    else {
                         errorState = mqtt.state();
                         if (errorState != 0 && !continueOnError) {
                             // An error occurred and continueOnError is false, return the error state
@@ -606,14 +519,12 @@ DiscoveryObject GenerateNumberDevice(String name, String displayName, int min_va
  * @return 0 if successful, MQTT connection error code if failed to send messages
  */
 int sendHASSIODiscoveryMsg() {
-    HASSIO_update = true;
+    hassioUpdateRunning = true;
     // Number Devices
     DiscoveryObject brewSetpoint = GenerateNumberDevice("brewSetpoint", "Brew setpoint", BREW_SETPOINT_MIN, BREW_SETPOINT_MAX, 0.1, "°C");
     DiscoveryObject steamSetPoint = GenerateNumberDevice("steamSetpoint", "Steam setpoint", STEAM_SETPOINT_MIN, STEAM_SETPOINT_MAX, 0.1, "°C");
     DiscoveryObject brewTempOffset = GenerateNumberDevice("brewTempOffset", "Brew Temp. Offset", BREW_TEMP_OFFSET_MIN, BREW_TEMP_OFFSET_MAX, 0.1, "°C");
     DiscoveryObject brewPidDelay = GenerateNumberDevice("brewPidDelay", "Brew Pid Delay", BREW_PID_DELAY_MIN, BREW_PID_DELAY_MAX, 0.1, "");
-    DiscoveryObject startKp = GenerateNumberDevice("startKp", "Start Kp", PID_KP_START_MIN, PID_KP_START_MAX, 0.1, "");
-    DiscoveryObject startTn = GenerateNumberDevice("startTn", "Start Tn", PID_TN_START_MIN, PID_TN_START_MAX, 0.1, "");
     DiscoveryObject steamKp = GenerateNumberDevice("steamKp", "Steam Kp", PID_KP_STEAM_MIN, PID_KP_STEAM_MAX, 0.1, "");
     DiscoveryObject aggKp = GenerateNumberDevice("aggKp", "aggKp", PID_KP_REGULAR_MIN, PID_KP_REGULAR_MAX, 0.1, "");
     DiscoveryObject aggTn = GenerateNumberDevice("aggTn", "aggTn", PID_TN_REGULAR_MIN, PID_TN_REGULAR_MAX, 0.1, "");
@@ -657,8 +568,6 @@ int sendHASSIODiscoveryMsg() {
                                                      steamSetPoint,
                                                      brewTempOffset,
                                                      brewPidDelay,
-                                                     startKp,
-                                                     startTn,
                                                      steamKp,
                                                      aggKp,
                                                      aggTn,
