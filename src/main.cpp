@@ -81,6 +81,7 @@ enum MachineState {
     kBrew = 30,
     kManualFlush = 35,
     kSteam = 40,
+    kWater = 45,
     kBackflush = 50,
     kWaterTankEmpty = 70,
     kEmergencyStop = 80,
@@ -141,7 +142,7 @@ GPIOPin heaterRelayPin(PIN_HEATER, GPIOPin::OUT);
 Relay heaterRelay(heaterRelayPin, HEATER_SSR_TYPE);
 
 GPIOPin pumpRelayPin(PIN_PUMP, GPIOPin::OUT);
-Relay pumpRelay(pumpRelayPin, PUMP_VALVE_SSR_TYPE);
+Relay pumpRelay(pumpRelayPin, PUMP_WATER_SSR_TYPE);
 
 GPIOPin valveRelayPin(PIN_VALVE, GPIOPin::OUT);
 Relay valveRelay(valveRelayPin, PUMP_VALVE_SSR_TYPE);
@@ -149,6 +150,7 @@ Relay valveRelay(valveRelayPin, PUMP_VALVE_SSR_TYPE);
 Switch* powerSwitch;
 Switch* brewSwitch;
 Switch* steamSwitch;
+Switch* waterSwitch;
 
 TempSensor* tempSensor;
 
@@ -401,9 +403,13 @@ U8G2_SH1106_128X64_NONAME_F_4W_HW_SPI u8g2(U8G2_R0, OLED_CS, OLED_DC, /* reset=*
 Timer printDisplayTimer(&printScreen, 100);
 #endif
 
+// initialise water switch variable
+int waterON = 0;
+
 #include "powerHandler.h"
 #include "scaleHandler.h"
 #include "steamHandler.h"
+#include "waterHandler.h"
 
 // Emergency stop if temp is too high
 void testEmergencyStop() {
@@ -585,6 +591,14 @@ void handleMachineState() {
                 }
             }
 
+            if (waterON == 1) {
+                machineState = kWater;
+
+                if (standbyModeOn) {
+                    resetStandbyTimer();
+                }
+            }
+
             if (emergencyStop) {
                 machineState = kEmergencyStop;
             }
@@ -649,6 +663,32 @@ void handleMachineState() {
         case kSteam:
             if (steamON == 0) {
                 machineState = kPidNormal;
+            }
+
+            if (emergencyStop) {
+                machineState = kEmergencyStop;
+            }
+
+            if (pidON == 0) {
+                machineState = kPidDisabled;
+            }
+
+            if (tempSensor->hasError()) {
+                machineState = kSensorError;
+            }
+            break;
+
+        case kWater:
+            if (waterON == 0) {
+                machineState = kPidNormal;
+            }
+
+            if (steamON == 1) {
+                machineState = kSteam;
+
+                if (standbyModeOn) {
+                    resetStandbyTimer();
+                }
             }
 
             if (emergencyStop) {
@@ -760,6 +800,15 @@ void handleMachineState() {
                 machineState = kSteam;
             }
 
+            if (waterON) {
+                pidON = 1;
+                resetStandbyTimer();
+#if OLED_DISPLAY != 0
+                u8g2.setPowerSave(0);
+#endif
+                machineState = kWater;
+            }
+
             if (brew()) {
                 pidON = 1;
                 resetStandbyTimer();
@@ -825,6 +874,8 @@ char const* machinestateEnumToString(MachineState machineState) {
             return "Manual Flush";
         case kSteam:
             return "Steam";
+        case kWater:
+            return "Water";
         case kBackflush:
             return "Backflush";
         case kWaterTankEmpty:
@@ -1433,6 +1484,10 @@ void setup() {
         brewSwitch = new IOSwitch(PIN_BREWSWITCH, GPIOPin::IN_HARDWARE, BREWSWITCH_TYPE, BREWSWITCH_MODE);
     }
 
+    if (FEATURE_WATERSWITCH) {
+        waterSwitch = new IOSwitch(PIN_WATERSWITCH, GPIOPin::IN_HARDWARE, WATERSWITCH_TYPE, WATERSWITCH_MODE);
+    }
+
     if (LED_TYPE == LED::STANDARD) {
         statusLedPin = new GPIOPin(PIN_STATUSLED, GPIOPin::OUT);
         brewLedPin = new GPIOPin(PIN_BREWLED, GPIOPin::OUT);
@@ -1652,6 +1707,7 @@ void looppid() {
 
     checkSteamSwitch();
     checkPowerSwitch();
+    checkWaterSwitch();
 
     // set setpoint depending on steam or brew mode
     if (steamON == 1) {
@@ -1663,6 +1719,7 @@ void looppid() {
 
     updateStandbyTimer();
     handleMachineState();
+    waterHandler();
 
     // Check if brew timer should be shown
 #if (FEATURE_BREWSWITCH == 1)
