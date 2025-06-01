@@ -62,6 +62,7 @@ enum MachineState {
     kBrew = 30,
     kManualFlush = 35,
     kSteam = 40,
+    kWater = 45,
     kBackflush = 50,
     kWaterTankEmpty = 70,
     kEmergencyStop = 80,
@@ -127,6 +128,7 @@ Relay* valveRelay = nullptr;
 Switch* powerSwitch = nullptr;
 Switch* brewSwitch = nullptr;
 Switch* steamSwitch = nullptr;
+Switch* waterSwitch = nullptr;
 
 TempSensor* tempSensor = nullptr;
 
@@ -152,6 +154,10 @@ int writeSysParamsToMQTT(bool continueOnError);
 void updateStandbyTimer();
 void resetStandbyTimer();
 void wiFiReset();
+
+// debugging water pump actions
+String waterStateDebug = "off";
+String lastWaterStateDebug = "off";
 
 // system parameters
 bool pidON = false;
@@ -279,9 +285,13 @@ void u8g2_prepare();
 
 Timer printDisplayTimer(&DisplayTemplateManager::printScreen, 100);
 
+// initialise water switch variable
+int waterON = 0;
+
 #include "powerHandler.h"
 #include "scaleHandler.h"
 #include "steamHandler.h"
+#include "waterHandler.h"
 
 // Emergency stop if temp is too high
 void testEmergencyStop() {
@@ -459,6 +469,14 @@ void handleMachineState() {
                 }
             }
 
+            if (waterON == 1) {
+                machineState = kWater;
+
+                if (standbyModeOn) {
+                    resetStandbyTimer(machineState);
+                }
+            }
+
             if (emergencyStop) {
                 machineState = kEmergencyStop;
             }
@@ -523,6 +541,40 @@ void handleMachineState() {
         case kSteam:
             if (!steamON) {
                 machineState = kPidNormal;
+            }
+
+            if (emergencyStop) {
+                machineState = kEmergencyStop;
+            }
+
+            if (pidON == 0) {
+                machineState = kPidDisabled;
+            }
+
+            if (tempSensor->hasError()) {
+                machineState = kSensorError;
+            }
+            break;
+
+        case kWater:
+            if (waterON == 0) {
+                machineState = kPidNormal;
+            }
+
+            if (steamON == 1) {
+                machineState = kSteam;
+
+                if (standbyModeOn) {
+                    resetStandbyTimer(machineState);
+                }
+            }
+
+            if (brew()) {
+                machineState = kBrew;
+
+                if (standbyModeOn) {
+                    resetStandbyTimer(machineState);
+                }
             }
 
             if (emergencyStop) {
@@ -636,6 +688,16 @@ void handleMachineState() {
                     }
                 }
 
+                if (waterON) {
+                    setRuntimePidState(true);
+                    machineState = kWater;
+                    resetStandbyTimer(machineState);
+
+                    if (oledEnabled) {
+                        u8g2->setPowerSave(0);
+                    }
+                }
+
                 if (brew()) {
                     setRuntimePidState(true);
                     machineState = kBrew;
@@ -707,6 +769,8 @@ char const* machinestateEnumToString(const MachineState machineState) {
             return "Manual Flush";
         case kSteam:
             return "Steam";
+        case kWater:
+            return "Water";
         case kBackflush:
             return "Backflush";
         case kWaterTankEmpty:
@@ -938,10 +1002,12 @@ void setup() {
     heaterRelay = new Relay(heaterRelayPin, heaterTriggerType);
     heaterRelay->off();
 
-    const auto valvePumpTriggerType = static_cast<Relay::TriggerType>(config.get<int>("hardware.relays.pump_valve.trigger_type"));
-    valveRelay = new Relay(valveRelayPin, valvePumpTriggerType);
+    const auto valveTriggerType = static_cast<Relay::TriggerType>(config.get<int>("hardware.relays.valve.trigger_type"));
+    valveRelay = new Relay(valveRelayPin, valveTriggerType);
     valveRelay->off();
-    pumpRelay = new Relay(pumpRelayPin, valvePumpTriggerType);
+
+    const auto pumpTriggerType = static_cast<Relay::TriggerType>(config.get<int>("hardware.relays.pump.trigger_type"));
+    pumpRelay = new Relay(pumpRelayPin, pumpTriggerType);
     pumpRelay->off();
 
     if (config.get<bool>("hardware.switches.power.enabled")) {
@@ -960,6 +1026,12 @@ void setup() {
         const auto type = static_cast<Switch::Type>(config.get<int>("hardware.switches.brew.type"));
         const auto mode = static_cast<Switch::Mode>(config.get<int>("hardware.switches.brew.mode"));
         brewSwitch = new IOSwitch(PIN_BREWSWITCH, GPIOPin::IN_HARDWARE, type, mode);
+    }
+
+    if (config.get<bool>("hardware.switches.water.enabled")) {
+        const auto type = static_cast<Switch::Type>(config.get<int>("hardware.switches.water.type"));
+        const auto mode = static_cast<Switch::Mode>(config.get<int>("hardware.switches.water.mode"));
+        waterSwitch = new IOSwitch(PIN_WATERSWITCH, GPIOPin::IN_HARDWARE, type, mode);
     }
 
     if (config.get<bool>("hardware.leds.status.enabled")) {
@@ -1195,6 +1267,7 @@ void loopPid() {
 
     checkSteamSwitch();
     checkPowerSwitch();
+    checkWaterSwitch();
 
     // set setpoint depending on steam or brew mode
     if (steamON == 1) {
@@ -1206,6 +1279,7 @@ void loopPid() {
 
     updateStandbyTimer();
     handleMachineState();
+    waterHandler();
 
     if (config.get<bool>("hardware.switches.brew.enabled")) {
         shouldDisplayBrewTimer();
