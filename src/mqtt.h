@@ -198,6 +198,118 @@ void mqtt_callback(char* topic, byte* data, unsigned int length) {
  * @param continueOnError Flag to specify whether to continue publishing messages in case of an error (default: true)
  * @return 0 = success, MQTT error code = failure
  */
+
+/*int writeSysParamsToMQTT(bool continueOnError = true) {
+    unsigned long currentMillisMQTT = millis();
+
+    if ((currentMillisMQTT - previousMillisMQTT >= intervalMQTT) && FEATURE_MQTT == 1) {
+        previousMillisMQTT = currentMillisMQTT;
+
+        if (mqtt.connected()) {
+            mqtt_publish("status", (char*)"online");
+
+            int errorState = 0;
+
+            for (const auto& pair : mqttVars) {
+                const char* varName = pair.first;
+                LOGF(DEBUG, "[MQTT] writeSysParamsToMQTT Publishing var: %s", varName);
+
+                editable_t* e = pair.second();
+
+                LOGF(DEBUG, "[MQTT] Preparing to publish var: %s", varName);
+
+                if (!e || !e->ptr) {
+                    LOGF(ERROR, "[MQTT] Null pointer for var: %s", varName);
+                    continue;
+                }
+
+                bool publishSuccess = false;
+                switch (e->type) {
+                    case kFloat: {
+                        float val = *(float*)e->ptr;
+                        LOGF(DEBUG, "[MQTT] %s (float): %.2f", varName, val);
+                        publishSuccess = mqtt_publish(varName, number2string(val), true);
+                        break;
+                    }
+                    case kDouble: {
+                        double val = *(double*)e->ptr;
+                        LOGF(DEBUG, "[MQTT] %s (double): %.2f", varName, val);
+                        publishSuccess = mqtt_publish(varName, number2string(val), true);
+                        break;
+                    }
+                    case kDoubletime: {
+                        double val = *(double*)e->ptr;
+                        LOGF(DEBUG, "[MQTT] %s (doubletime): %.2f", varName, val);
+                        publishSuccess = mqtt_publish(varName, number2string(val), true);
+                        break;
+                    }
+                    case kInteger: {
+                        int val = *(int*)e->ptr;
+                        LOGF(DEBUG, "[MQTT] %s (int): %d", varName, val);
+                        publishSuccess = mqtt_publish(varName, number2string(val), true);
+                        break;
+                    }
+                    case kUInt8: {
+                        uint8_t val = *(uint8_t*)e->ptr;
+                        LOGF(DEBUG, "[MQTT] %s (uint8_t): %u", varName, val);
+                        publishSuccess = mqtt_publish(varName, number2string(val), true);
+                        break;
+                    }
+                    case kCString: {
+                        const char* val = (const char*)e->ptr;
+                        LOGF(DEBUG, "[MQTT] %s (cstring): %s", varName, val);
+                        publishSuccess = mqtt_publish(varName, (char*)val, true);
+                        break;
+                    }
+                    default:
+                        LOGF(ERROR, "[MQTT] Unknown type for var: %s", varName);
+                        publishSuccess = false;
+                        break;
+                }
+
+                LOGF(DEBUG, "[MQTT] After publish call for var: %s, success: %d", varName, publishSuccess);
+
+                if (!publishSuccess) {
+                    errorState = mqtt.state();
+                    LOGF(ERROR, "[MQTT] Failed to publish var: %s, MQTT state: %d", varName, errorState);
+                    if (!continueOnError) {
+                        return errorState;
+                    }
+                } else {
+                    LOGF(DEBUG, "[MQTT] Successfully published var: %s", varName);
+                }
+            }
+
+            for (const auto& pair : mqttSensors) {
+                const char* sensorName = pair.first;
+                LOGF(DEBUG, "[MQTT] writeSysParamsToMQTT Publishing sensor: %s", sensorName);
+
+                bool publishSuccess = mqtt_publish(sensorName, number2string(pair.second()));
+
+                LOGF(DEBUG, "[MQTT] After publish call for sensor: %s, success: %d", sensorName, publishSuccess);
+
+                if (!publishSuccess) {
+                    errorState = mqtt.state();
+                    LOGF(ERROR, "[MQTT] Failed to publish sensor: %s, MQTT state: %d", sensorName, errorState);
+                    if (!continueOnError) {
+                        return errorState;
+                    }
+                } else {
+                    LOGF(DEBUG, "[MQTT] Successfully published sensor: %s", sensorName);
+                }
+            }
+
+            return 0;
+        } else {
+            LOG(DEBUG, "[MQTT] MQTT client not connected");
+            return -1;
+        }
+    }
+
+    return 0;
+}*/
+
+
 int writeSysParamsToMQTT(bool continueOnError = true) {
     unsigned long currentMillisMQTT = millis();
 
@@ -551,11 +663,21 @@ int sendHASSIODiscoveryMsg() {
 
     discoveryObjects.push_back(pressure);
 #endif
-
+    if (&mqtt == nullptr) {
+        LOG(ERROR, "[MQTT] mqtt object is null");
+        return -2;
+    }
     // Send the Objects to Hassio
     if (mqtt.connected()) {
         for (int i = 0; i < discoveryObjects.size(); i++) {
             const DiscoveryObject& discoveryObj = discoveryObjects[i];
+
+            // Defensive: ensure strings are valid
+            if (!discoveryObj.discovery_topic.c_str() || !discoveryObj.payload_json.c_str()) {
+                LOGF(ERROR, "[MQTT] Null topic or payload at index %d", i);
+                continue;
+            }
+
             int publishResult = PublishLargeMessage(discoveryObj.discovery_topic.c_str(), discoveryObj.payload_json.c_str());
 
             if (publishResult != 0) {

@@ -1404,7 +1404,8 @@ void setup() {
 #endif
 
 #if FEATURE_SCALE == 1
-    mqttVars["weightSetpoint"] = [] { return &editableVars.at("SCALE_WEIGHTSETPOINT"); };
+    //mqttVars["weightSetpoint"] = [] { return &editableVars.at("SCALE_WEIGHTSETPOINT"); };
+    mqttVars["targetBrewWeight"] = [] { return &editableVars.at("SCALE_TARGET_BREW_WEIGHT"); };
     mqttVars["scaleCalibration"] = [] { return &editableVars.at("SCALE_CALIBRATION"); };
 #if SCALE_TYPE == 0
     mqttVars["scale2Calibration"] = [] { return &editableVars.at("SCALE2_CALIBRATION"); };
@@ -1608,6 +1609,7 @@ void looppid() {
             if (mqtt.connected() == 1) {
                 mqtt.loop();
 #if MQTT_HASSIO_SUPPORT == 1
+                LOG(DEBUG, "Sending HASSIO Discovery");
                 hassioDiscoveryTimer();
 #endif
                 mqtt_was_connected = true;
