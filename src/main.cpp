@@ -668,6 +668,14 @@ void handleMachineState() {
             break;
 
         case kSteam:
+            if (brew()) {
+                machineState = kBrew;
+
+                if (standbyModeOn) {
+                    resetStandbyTimer();
+                }
+            }
+            
             if (steamON == 0) {
                 machineState = kPidNormal;
             }
@@ -1615,7 +1623,7 @@ void loop() {
     loopLED();
 
     //debug timing
-    loopdebugtiming();
+    //loopdebugtiming();
 }
 
 void loopdebugtiming(void) {
@@ -1664,7 +1672,6 @@ void looppid() {
             if (mqtt.connected() == 1) {
                 mqtt.loop();
 #if MQTT_HASSIO_SUPPORT == 1
-                LOG(DEBUG, "Sending HASSIO Discovery");
                 hassioDiscoveryTimer();
 #endif
                 mqtt_was_connected = true;
