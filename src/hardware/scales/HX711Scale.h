@@ -37,11 +37,12 @@ class HX711Scale : public Scale {
          * @brief Constructor for dual HX711 scale setup (shared clock)
          * @param dataPin1 Data pin for first HX711
          * @param dataPin2 Data pin for second HX711
-         * @param clkPin Shared clock pin for both HX711s
+         * @param clkPin clock pin for first HX711
+         * @param clkPin2 clock pin for second HX711
          * @param calibrationFactor1 Initial calibration factor for first cell
          * @param calibrationFactor2 Initial calibration factor for second cell
          */
-        HX711Scale(int dataPin1, int dataPin2, int clkPin, float calibrationFactor1 = 1.0, float calibrationFactor2 = 1.0);
+        HX711Scale(int dataPin1, int dataPin2, int clkPin, int clkPin2, float calibrationFactor1 = 1.0, float calibrationFactor2 = 1.0);
 
         ~HX711Scale() override;
 

@@ -33,15 +33,15 @@
 #include "hardware/StandardLED.h"
 #include "hardware/Switch.h"
 #include "hardware/pinmapping.h"
+#include "hardware/pressureSensorAds1115.h"
 #include "hardware/tempsensors/TempSensorDallas.h"
-#include "hardware/tempsensors/TempSensorTSIC.h"
+#include "hardware/tempsensors/TempSensorK.h"
 
 // User configuration & defaults
 #include "defaults.h"
 
 hw_timer_t* timer = nullptr;
 
-#include "hardware/pressureSensor.h"
 #include <Wire.h>
 
 Config config;
@@ -115,7 +115,7 @@ String otaPass;
 // Pressure sensor
 float inputPressure = 0;
 float inputPressureFilter = 0;
-const unsigned long intervalPressure = 100;
+const unsigned long intervalPressure = 20;
 unsigned long previousMillisPressure; // initialisation at the end of init()
 
 // timing flags
@@ -136,10 +136,12 @@ Switch* waterTankSensor = nullptr;
 GPIOPin* statusLedPin = nullptr;
 GPIOPin* brewLedPin = nullptr;
 GPIOPin* steamLedPin = nullptr;
+GPIOPin* waterLedPin = nullptr;
 
 LED* statusLed = nullptr;
 LED* brewLed = nullptr;
 LED* steamLed = nullptr;
+LED* waterLed = nullptr;
 
 GPIOPin heaterRelayPin(PIN_HEATER, GPIOPin::OUT);
 Relay* heaterRelay = nullptr;
@@ -1117,7 +1119,7 @@ void setup() {
     const int tempSensorType = config.get<int>("hardware.sensors.temperature.type");
 
     if (tempSensorType == 0) {
-        tempSensor = new TempSensorTSIC(PIN_TEMPSENSOR);
+        tempSensor = new TempSensorK(PIN_TEMPERATURE_CLK, PIN_TEMPERATURE_CS, PIN_TEMPERATURE_SO);
     }
     else if (tempSensorType == 1) {
         tempSensor = new TempSensorDallas(PIN_TEMPSENSOR);
@@ -1143,6 +1145,7 @@ void setup() {
 
     if (config.get<bool>("hardware.sensors.pressure.enabled")) {
         previousMillisPressure = currentTime;
+        pressureInit();
     }
 
     if (config.get<bool>("hardware.oled.enabled")) {
@@ -1205,7 +1208,8 @@ void loopPid() {
     temperatureUpdateRunning = false;
 
     if (tempSensor != nullptr) {
-        temperature = tempSensor->getCurrentTemperature();
+        // temperature = tempSensor->getCurrentTemperature();
+        temperature = tempSensor->getAverageTemperature();
 
         if (machineState != kSteam) {
             temperature -= brewTempOffset;
@@ -1322,7 +1326,7 @@ void loopPid() {
     if (config.get<bool>("hardware.sensors.pressure.enabled")) {
         if (const unsigned long currentMillisPressure = millis(); currentMillisPressure - previousMillisPressure >= intervalPressure) {
             previousMillisPressure = currentMillisPressure;
-            inputPressure = measurePressure();
+            inputPressure = measurePressureAds();
             inputPressureFilter = filterPressureValue(inputPressure);
         }
     }
@@ -1461,6 +1465,10 @@ void loopLED() {
 
     if (config.get<bool>("hardware.leds.steam.enabled") && steamLed != nullptr) {
         steamLed->setGPIOState(machineState == kSteam);
+    }
+
+    if (config.get<bool>("hardware.leds.water.enabled") && waterLed != nullptr) {
+        waterLed->setGPIOState(machineState == kHotWater);
     }
 }
 

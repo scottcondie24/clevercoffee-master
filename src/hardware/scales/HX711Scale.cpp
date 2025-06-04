@@ -9,9 +9,9 @@ HX711Scale::HX711Scale(const int dataPin, const int clkPin, const float calibrat
     loadCell1(new HX711_ADC(dataPin, clkPin)), loadCell2(nullptr), currentWeight(0.0), calibrationFactor1(calibrationFactor), calibrationFactor2(1.0), isDualCell(false), readSecondScale(false), weight1(0.0), weight2(0.0) {
 }
 
-HX711Scale::HX711Scale(int dataPin1, int dataPin2, int clkPin, float calibrationFactor1, float calibrationFactor2) :
+HX711Scale::HX711Scale(int dataPin1, int dataPin2, int clkPin, int clkPin2, float calibrationFactor1, float calibrationFactor2) :
     loadCell1(new HX711_ADC(dataPin1, clkPin)),
-    loadCell2(new HX711_ADC(dataPin2, clkPin)),
+    loadCell2(new HX711_ADC(dataPin2, clkPin2)),
     currentWeight(0.0),
     calibrationFactor1(calibrationFactor1),
     calibrationFactor2(calibrationFactor2),
