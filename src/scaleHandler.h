@@ -255,7 +255,7 @@ inline void initScale() {
         const float cal2 = ParameterRegistry::getInstance().getParameterById("hardware.sensors.scale.calibration2")->getValueAs<float>();
 
         if (scaleType == 0) { // Dual load cell
-            scale = new HX711Scale(PIN_HXDAT, PIN_HXDAT2, PIN_HXCLK, cal1, cal2);
+            scale = new HX711Scale(PIN_HXDAT, PIN_HXDAT2, PIN_HXCLK, PIN_HXCLK2, cal1, cal2);
         }
         else {                // Single load cell
             scale = new HX711Scale(PIN_HXDAT, PIN_HXCLK, cal1);
