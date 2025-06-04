@@ -1048,6 +1048,24 @@ void ParameterRegistry::initialize(Config& config) {
         nullptr,
         "Invert the steam LED logic (for common anode LEDs)"
     );
+    
+    addBoolConfigParam(
+        "hardware.leds.water.enabled",
+        "Enable Water LED",
+        sHardwareLedSection,
+        2331,
+        nullptr,
+        "Enable water indicator LED"
+    );
+
+    addBoolConfigParam(
+        "hardware.leds.water.inverted",
+        "Invert Water LED",
+        sHardwareLedSection,
+        2332,
+        nullptr,
+        "Invert the water LED logic (for common anode LEDs)"
+    );
 
     // Sensors
     addEnumConfigParam(
@@ -1056,7 +1074,7 @@ void ParameterRegistry::initialize(Config& config) {
         sHardwareSensorSection,
         2401,
         nullptr,
-        (const char* const[]){"TSIC306", "Dallas DS18B20"},
+        (const char* const[]){"MAX6675", "Dallas DS18B20"},
         2,
         "Type of temperature sensor connected"
     );
