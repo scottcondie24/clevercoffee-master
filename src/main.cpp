@@ -92,6 +92,7 @@ enum MachineState {
 
 MachineState machineState = kInit;
 MachineState lastmachinestate = kInit;
+MachineState lastmachinestatehtml = kInit;
 int lastmachinestatepid = -1;
 
 // Definitions below must be changed in the userConfig.h file
@@ -332,6 +333,8 @@ std::map<const char*, std::function<double()>, cmp_str> mqttSensors = {};
 
 unsigned long lastTempEvent = 0;
 unsigned long tempEventInterval = 1000;
+unsigned long lastBrewEvent = 0;
+unsigned long brewEventInterval = 100;
 
 #if MQTT_HASSIO_SUPPORT == 1
 Timer hassioDiscoveryTimer(&sendHASSIODiscoveryMsg, 300000);
@@ -1572,7 +1575,7 @@ void loopdebugtiming(void) {
         maxloop = loopDuration;
     }
     loopIndex = (loopIndex + 1) % LOOP_HISTORY_SIZE;
-    if((loopIndex == 0)&&(maxloop > 30)){
+    if((loopIndex == 0)&&(maxloop > 40)){
         printLoopTimingsAsList();
         maxloop = 0;
     }
@@ -1647,7 +1650,21 @@ void looppid() {
 
     testEmergencyStop(); // test if temp is too high
     bPID.Compute();      // the variable pidOutput now has new values from PID (will be written to heater pin in ISR.cpp)
+    
+    if((machineState == kBrew) && (lastmachinestatehtml != kBrew)) {
+        startBrewEvent();
+        lastmachinestatehtml = machineState;
+    }
+    if((machineState != kBrew) && (lastmachinestatehtml == kBrew)) {
+        stopBrewEvent();
+        lastmachinestatehtml = machineState;
+    }
 
+    if (((millis() - lastBrewEvent) > brewEventInterval) && (machineState == kBrew)) {
+        // send brew data to website endpoint
+        sendBrewEvent(temperature, brewSetpoint, pidOutput / 10); // pidOutput is promill, so /10 to get percent value
+        lastBrewEvent = millis();
+    }
     if ((millis() - lastTempEvent) > tempEventInterval) {
         // send temperatures to website endpoint
         sendTempEvent(temperature, brewSetpoint, pidOutput / 10); // pidOutput is promill, so /10 to get percent value

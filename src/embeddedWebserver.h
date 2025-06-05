@@ -461,6 +461,10 @@ void serverSetup() {
         request->send(response);
     });
 
+    server.on("/graph", HTTP_GET, [](AsyncWebServerRequest* request) {
+        request->send(LittleFS, "/graph.html", "text/html");
+    });
+
     server.on("/wifireset", HTTP_POST, [](AsyncWebServerRequest* request) {
         request->send(200, "text/plain", "WiFi settings are being reset. Rebooting...");
 
@@ -524,4 +528,25 @@ void sendTempEvent(double currentTemp, double targetTemp, double heaterPower) {
 
     events.send("ping", NULL, millis());
     events.send(getTempString().c_str(), "new_temps", millis());
+    //LOGF(DEBUG, "%s", getTempString().c_str());
+}
+
+void sendBrewEvent(double currentTemp, double targetTemp, double heaterPower) {
+    StaticJsonDocument<96> doc;
+
+    doc["currentTemp"] = currentTemp;
+    doc["targetTemp"] = targetTemp;
+    doc["heaterPower"] = heaterPower;
+    String jsonTemps;
+    serializeJson(doc, jsonTemps);
+
+    events.send(jsonTemps.c_str(), "brew_event", millis());
+    //LOGF(DEBUG, "%s", jsonTemps.c_str());
+}
+
+void startBrewEvent() {
+    events.send("start", "brew_state", millis());
+}
+void stopBrewEvent() {
+    events.send("stop", "brew_state", millis());
 }
