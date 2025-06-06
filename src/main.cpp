@@ -111,6 +111,7 @@ enum MachineState {
 MachineState machineState = kInit;
 MachineState lastmachinestate = kInit;
 MachineState lastmachinestatedebug = kInit;
+MachineState lastmachinestatehtml = kInit;
 int lastmachinestatepid = -1;
 
 String waterstatedebug = "off";
@@ -450,6 +451,8 @@ std::map<const char*, std::function<double()>, cmp_str> mqttSensors = {};
 
 unsigned long lastTempEvent = 0;
 unsigned long tempEventInterval = 1000;
+unsigned long lastBrewEvent = 0;
+unsigned long brewEventInterval = 100;
 
 #if MQTT_HASSIO_SUPPORT == 1
 Timer hassioDiscoveryTimer(&sendHASSIODiscoveryMsg, 300000);
@@ -2336,6 +2339,21 @@ void looppid() {
 
     testEmergencyStop(); // test if temp is too high
     bPID.Compute();      // the variable pidOutput now has new values from PID (will be written to heater pin in ISR.cpp)
+    if((machineState == kBrew) && (lastmachinestatehtml != kBrew)) {
+        startBrewEvent();
+        lastmachinestatehtml = machineState;
+    }
+    if((machineState != kBrew) && (lastmachinestatehtml == kBrew)) {
+        stopBrewEvent();
+        lastmachinestatehtml = machineState;
+    }
+
+    if (((millis() - lastBrewEvent) > brewEventInterval) && (machineState == kBrew)) {
+        website_update = true;
+        // send brew data to website endpoint
+        sendBrewEvent(inputPressure, setPressure, pumpFlowRate, setPumpFlowRate, weightBrewed, DimmerPower); // pidOutput is promill, so /10 to get percent value
+        lastBrewEvent = millis();
+    }
 
     if (((millis() - lastTempEvent) > tempEventInterval)&&(!mqtt_update)&&(!HASSIO_update)&&(!buffer_ready)) {
         website_update = true;
