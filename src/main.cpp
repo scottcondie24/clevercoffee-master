@@ -42,6 +42,7 @@
 #include "hardware/TempSensorDallas.h"
 #include "hardware/TempSensorTSIC.h"
 #include "hardware/pinmapping.h"
+#include "hardware/GPIOFactory.h"
 
 // User configuration & defaults
 #include "defaults.h"
@@ -1355,9 +1356,11 @@ void setup() {
         .displayName = F("Version"), .hasHelpText = false, .helpText = "", .type = kCString, .section = sOtherSection, .position = 40, .show = [] { return false; }, .minValue = 0, .maxValue = 1, .ptr = (void*)sysVersion};
     // when adding parameters, set EDITABLE_VARS_LEN to max of .position
 
-#if (FEATURE_PRESSURESENSOR == 1)
+//#if (FEATURE_PRESSURESENSOR == 1)
+//    Wire.begin();
+//#endif
     Wire.begin();
-#endif
+    initGPIOFactory();  // Initialize PCF8575 bus
 
     // Editable values reported to MQTT
     mqttVars["pidON"] = [] { return &editableVars.at("PID_ON"); };
@@ -1436,9 +1439,12 @@ void setup() {
     }
 
     if (LED_TYPE == LED::STANDARD) {
-        statusLedPin = new GPIOPin(PIN_STATUSLED, GPIOPin::OUT);
-        brewLedPin = new GPIOPin(PIN_BREWLED, GPIOPin::OUT);
-        steamLedPin = new GPIOPin(PIN_STEAMLED, GPIOPin::OUT);
+        //statusLedPin = new GPIOPin(PIN_STATUSLED, GPIOPin::OUT);
+        //brewLedPin = new GPIOPin(PIN_BREWLED, GPIOPin::OUT);
+        //steamLedPin = new GPIOPin(PIN_STEAMLED, GPIOPin::OUT);
+        statusLedPin = createGPIOPin(PIN_STATUSLED, GPIOPin::OUT);
+        brewLedPin = createGPIOPin(PIN_BREWLED, GPIOPin::OUT);
+        steamLedPin = createGPIOPin(PIN_STEAMLED, GPIOPin::OUT);
 
         statusLed = new StandardLED(*statusLedPin, FEATURE_STATUS_LED);
         brewLed = new StandardLED(*brewLedPin, FEATURE_BREW_LED);

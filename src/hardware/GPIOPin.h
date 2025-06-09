@@ -38,12 +38,17 @@ class GPIOPin {
         GPIOPin(int pinNumber, Type pinType);
 
         /**
+         * @brief Virtual destructor to allow proper cleanup in derived classes
+         */
+        virtual ~GPIOPin() = default;
+
+        /**
          * @brief Write value to pin
          * @details Writes the provided boolean value to the pin if it is configured as output pin, otherwise ignores call
          *
          * @param value Boolean value to set the pin to
          */
-        void write(bool value) const;
+        virtual void write(bool value) const;
 
         /**
          * @brief Read value from pin
@@ -51,7 +56,7 @@ class GPIOPin {
          *          value
          * @return Value read from GPIO pin
          */
-        int read() const;
+        virtual int read() const;
 
         /**
          * @brief Returns configured type of this GPIO pin
@@ -59,13 +64,13 @@ class GPIOPin {
          */
         Type getType() const;
 
-    private:
+    protected:
         /**
          * @brief Set the type of the GPIO pin
          *
          * @param pinType Desired type of the pin
          */
-        void setType(Type pinType);
+        virtual void setType(Type pinType);
 
         int pin;
         Type pinType;

@@ -40,7 +40,7 @@
 // LEDs
 #define PIN_STATUSLED 26
 #define PIN_BREWLED   19
-#define PIN_STEAMLED  1
+#define PIN_STEAMLED  43
 
 // Periphery
 #define PIN_ZC 18 // Dimmer circuit Zero Crossing
