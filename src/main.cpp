@@ -135,6 +135,10 @@ bool displayUpdateRunning = false;
 bool websiteUpdateRunning = false;
 bool mqttUpdateRunning = false;
 bool hassioUpdateRunning = false;
+volatile bool displayNeedsUpdate = false;
+portMUX_TYPE displayMux = portMUX_INITIALIZER_UNLOCKED;
+unsigned long displayDuration = 0;
+unsigned long displayStartTime = 0;
 
 #include "utils/timingDebug.h"
 
@@ -188,6 +192,7 @@ int writeSysParamsToMQTT(bool continueOnError);
 void updateStandbyTimer(void);
 void resetStandbyTimer(void);
 void wiFiReset(void);
+void displayTask(void *pvParameters);
 
 // system parameters
 uint8_t pidON = 0;   // 1 = control loop in closed loop
@@ -939,6 +944,20 @@ void websiteSetup() {
 
 const char sysVersion[] = (STR(FW_VERSION) "." STR(FW_SUBVERSION) "." STR(FW_HOTFIX) " " FW_BRANCH " " AUTO_VERSION);
 
+void displayTask(void *pvParameters) {
+  for (;;) {
+    if (displayNeedsUpdate) {
+      portENTER_CRITICAL(&displayMux);
+      displayNeedsUpdate = false;
+      portEXIT_CRITICAL(&displayMux);
+      displayStartTime = micros();
+      u8g2.sendBuffer(); // This can take several milliseconds
+      displayDuration = micros() - displayStartTime;
+    }
+    vTaskDelay(1); // yield to other tasks
+  }
+}
+
 void setup() {
     // Start serial console
     Serial.begin(115200);
@@ -1478,6 +1497,17 @@ void setup() {
     u8g2_prepare();
     displayLogo(String("Version "), String(sysVersion));
     delay(2000); // caused crash with wifi manager on esp8266, should be ok on esp32
+
+      // Start the display task on core 1
+    xTaskCreatePinnedToCore(
+        displayTask,      // task function
+        "Display Task",   // name
+        2048,             // stack size
+        NULL,             // parameters
+        1,                // priority
+        NULL,             // handle
+        1                 // core 1
+    );
 #endif
 
     // Fallback offline
@@ -1574,7 +1604,8 @@ void loop() {
     // Update LED output based on machine state
     loopLED();
 
-    debugTimingLoop();
+    //debugTimingLoop();
+    debugTimingLoop2();
 }
 
 void looppid() {
@@ -1715,7 +1746,11 @@ void looppid() {
     // update display on loops that have not had other major tasks running, if blocked it will send in the next loop (average 0.5ms)
     if ((!websiteUpdateRunning) && (!mqttUpdateRunning) && (!hassioUpdateRunning) && (standbyModeRemainingTimeDisplayOffMillis > 0)) {
         if (displayBufferReady) {
-            u8g2.sendBuffer();
+              // Safely flag the display to update
+            portENTER_CRITICAL(&displayMux);
+            displayNeedsUpdate = true;
+            portEXIT_CRITICAL(&displayMux);
+            //u8g2.sendBuffer();
             displayBufferReady = false;
             displayUpdateRunning = true;
             // displayUpdateRunning currently doesn't block anything as it is near the end of the loop
