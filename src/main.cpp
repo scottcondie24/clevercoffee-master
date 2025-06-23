@@ -153,6 +153,7 @@ const char*  phaseName = "infuse";
 double lastPreinfusion = PRE_INFUSION_TIME;
 double lastPreinfusionPause = PRE_INFUSION_PAUSE_TIME;
 double lastBrewTime = BREW_TIME;
+double lastTempSetpoint = 0.0;
 
 //encoder menu
 int menuLevel = 0;
@@ -1918,7 +1919,7 @@ void runRecipe(int recipeIndex) {
 
     if (!debug_recipe) {
         debug_recipe = true;
-        brewTime = 0;               // disable  brewtime in s
+        brewTime = recipe->targetTime;
         lastPressure = 0.0;
         lastSetPressure = 0.0;
         lastFlow = 0.0;
@@ -1932,9 +1933,9 @@ void runRecipe(int recipeIndex) {
         BrewPhase* phase = &recipe->phases[currentPhaseIndex];
         phaseName = phase->name;
 
-        // Transition to next phase if exit condition met
         bool exitReached = false;
 
+        // Transition to next phase if exit condition met
         switch (phase->exit_type) {
             case EXIT_TYPE_NONE:
                 exitReached = (timeBrewed > phase->seconds*1000 + phaseTiming);
@@ -1994,7 +1995,7 @@ void runRecipe(int recipeIndex) {
 
     if(phaseReset) {
         LOGF(DEBUG, "Phase %d: %s for %.1f seconds", currentPhaseIndex, phase->name, phase->seconds);
-        if (phase->transition == TRANSITION_SMOOTH) {
+        if ((phase->transition == TRANSITION_SMOOTH) && (phase->seconds < 1.0)) {
             LOGF(WARNING, "Phase '%s' duration (%.2f s) is less than recommended minimum of 1 second for smooth transitions", phase->name, phase->seconds);
         }
     }
@@ -2082,9 +2083,9 @@ void runRecipe(int recipeIndex) {
 void looppid() {
     // Only do Wifi stuff, if Wifi is connected
     if (WiFi.status() == WL_CONNECTED && offlineMode == 0) {
-        if ((FEATURE_MQTT == 1)&&(micros() - blockStart < blockMQTTInterval)) {
+        if (FEATURE_MQTT == 1) {
             checkMQTT();
-            if(!buffer_ready) {
+            if((!buffer_ready)&&(micros() - blockStart < blockMQTTInterval)) {
                 writeSysParamsToMQTT(true); // Continue on error
             }
 

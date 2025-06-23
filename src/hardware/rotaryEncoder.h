@@ -78,6 +78,8 @@ void encoderHandler() {
                     const auto& control = encoderControls[encoderControl];
                     if (control.id == MENU_RECIPE) {
                         recipeName = recipes[currentRecipeIndex].name;
+                        lastTempSetpoint = temperature;
+                        //temperature = recipes[currentRecipeIndex].targetTemperature;
                         lastPreinfusion = preinfusion;
                         lastPreinfusionPause = preinfusionPause;
                         lastBrewTime = brewTime;
@@ -86,6 +88,7 @@ void encoderHandler() {
                         LOGF(INFO, "Recipe Index: %i -- Recipe Name: %s", currentRecipeIndex, recipeName);
                     }
                     else {
+                        //temperature = lastTempSetpoint;
                         preinfusion = lastPreinfusion;            // preinfusion time in s
                         preinfusionPause = lastPreinfusionPause; // preinfusion pause time in s
                         brewTime = lastBrewTime;                       // brewtime in s

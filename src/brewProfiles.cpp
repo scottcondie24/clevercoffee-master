@@ -12,16 +12,36 @@ BrewPhase springLeverPhases[] = {
 };
 const int springLeverPhasesCount = sizeof(springLeverPhases) / sizeof(BrewPhase);
 
-BrewPhase londiniumPhases[] = {
+BrewPhase adaptivePhases[] = {
         //0    1   2   3   4    5  6   7    8   9  10  11   12       13                     14               15
     {"pause", 0, 0, 0, 88.0, 0, 0, 0, 0, 0, 0.0, 0.0, 1.0, EXIT_TYPE_NONE, TRANSITION_FAST, FLOW},  //wait for weightBrewed to be reset
     {"fill", 0, 8.0, 0, 88.0, 5.0, 0, 0.0, 3.0, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},
     {"infuse", 3.0, 1.7, 0, 88.0, 4.0, 0, 0, 0, 0, 8.5, 5.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},        //exits at 4g
-    //{"pressure ramp", 8.6, 0.0, 0, 88.0, 0, 0, 1.7, 0.0, 0.0, 0.0, 0.0, 2.0, EXIT_TYPE_FLOW_OVER, TRANSITION_SMOOTH, PRESSURE}, //ramp so OPV doesnt immediately open
-    //{"pressure", 8.6, 1.7, 0, 88.0, 0, 0, 1.7, 0.0, 0.0, 0.0, 0.0, 60.0, EXIT_TYPE_FLOW_OVER, TRANSITION_SMOOTH, PRESSURE},
-    {"maintain flow", 0.0, 1.7, 0, 88.0, 50.0, 0, 0, 0, 0, 8.0, 0.5, 80.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},    //exits at 50g
+    {"maintain flow", 0.0, 1.7, 0, 88.0, 50.0, 0, 0, 0, 0, 8.6, 0.5, 80.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},    //exits at 50g
 };
-const int londiniumPhasesCount = sizeof(londiniumPhases) / sizeof(BrewPhase);
+const int adaptivePhasesCount = sizeof(adaptivePhases) / sizeof(BrewPhase);
+
+BrewPhase londiniumRPhases[] = {
+        //0    1   2   3   4    5  6   7    8   9  10  11   12       13                     14               15
+    {"pause", 0, 0, 0, 88.0, 0, 0, 0, 0, 0, 0.0, 0.0, 1.0, EXIT_TYPE_NONE, TRANSITION_FAST, FLOW},  //wait for weightBrewed to be reset
+    {"fill", 0, 12.0, 0, 88.0, 5.0, 0, 0.0, 2.5, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},
+    {"infuse", 3.0, 1.7, 0, 88.0, 4.0, 0, 0, 0, 0, 0.0, 0.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},        //exits at 4g
+    {"rise and hold", 8.6, 0.0, 0, 88.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 2.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE}, //ramp so OPV doesnt immediately open
+    {"decline", 5.0, 0, 0, 88.0, 36.0, 0, 0.0, 0.0, 5.0, 0.0, 0.0, 30.0, EXIT_TYPE_PRESSURE_UNDER, TRANSITION_SMOOTH, PRESSURE},
+    {"end", 0.0, 0.1, 0, 88.0, 36.0, 0, 0, 0, 0, 8.0, 0.5, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
+};
+const int londiniumRPhasesCount = sizeof(londiniumRPhases) / sizeof(BrewPhase);
+
+BrewPhase londiniumVPhases[] = {
+        //0    1   2   3   4    5  6   7    8   9  10  11   12       13                     14               15
+    {"pause", 0, 0, 0, 88.0, 0, 0, 0, 0, 0, 0.0, 0.0, 1.0, EXIT_TYPE_NONE, TRANSITION_FAST, FLOW},  //wait for weightBrewed to be reset
+    {"fill", 0, 12.0, 0, 88.0, 5.0, 0, 0.0, 1.0, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},
+    {"infuse", 1.2, 1.7, 0, 88.0, 4.0, 0, 0, 0, 0, 0.0, 0.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},        //exits at 4g
+    {"rise and hold", 6.5, 0.0, 0, 88.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 2.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE}, //ramp so OPV doesnt immediately open
+    {"decline", 4.0, 0, 0, 88.0, 0.0, 0, 0.0, 0.0, 4.0, 0.0, 0.0, 35.0, EXIT_TYPE_PRESSURE_UNDER, TRANSITION_SMOOTH, PRESSURE},
+    {"end", 0.0, 0.1, 0, 88.0, 0.0, 0, 0, 0, 0, 0.0, 0.0, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
+};
+const int londiniumVPhasesCount = sizeof(londiniumVPhases) / sizeof(BrewPhase);
 
 BrewPhase lightRoastPhases[] = {
     {"fill", 3.5, 0.0, 0, 92.0, 0, 0, 0, 3.0, 0, 0, 0.0, 12.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, PRESSURE},
@@ -75,15 +95,17 @@ BrewPhase testRampPhases[] = {
 };
 const int testRampPhasesCount = sizeof(testRampPhases) / sizeof(BrewPhase);
 
-BrewRecipe recipes[] = {
-    {"springLever", springLeverPhases, springLeverPhasesCount},
-    {"londinium", londiniumPhases, londiniumPhasesCount},
-    {"lightRoast", lightRoastPhases, lightRoastPhasesCount},
-    {"sixBarEspresso", sixBarEspressoPhases, sixBarEspressoPhasesCount},
-    {"bloomingEspresso", bloomingEspressoPhases, bloomingEspressoPhasesCount},
-    {"pressurizedBloom", pressurizedBloomPhases, pressurizedBloomPhasesCount},
-    {"calibrateFlow", calibrateFlowPhases, calibrateFlowPhasesCount},
-    {"testRampFlow", testRampPhases, testRampPhasesCount},
+BrewRecipe recipes[] = {    //displayname, Phases, Count, Temp, Time, Scales, Flow
+    {"springLever", springLeverPhases, springLeverPhasesCount, 90.0, 0, false, true},
+    {"adaptive", adaptivePhases, adaptivePhasesCount, 88.0, 0, true, true},
+    {"londiniumR", londiniumRPhases, londiniumRPhasesCount, 88.0, 0, true, true},
+    {"londiniumV", londiniumVPhases, londiniumVPhasesCount, 88.0, 0, true, true},
+    {"lightRoast", lightRoastPhases, lightRoastPhasesCount, 92.0, 0, false, true},
+    {"sixBarEspresso", sixBarEspressoPhases, sixBarEspressoPhasesCount, 90.0, 0, true, true},
+    {"bloomingEspresso", bloomingEspressoPhases, bloomingEspressoPhasesCount, 92.0, 0, false, true},
+    {"pressurizedBloom", pressurizedBloomPhases, pressurizedBloomPhasesCount, 93.0, 0, false, true},
+    {"calibrateFlow", calibrateFlowPhases, calibrateFlowPhasesCount, 90.0, 0, false, true},
+    {"testRampFlow", testRampPhases, testRampPhasesCount, 90.0, 0, false, true},
 };
 
 const int recipesCount = sizeof(recipes) / sizeof(BrewRecipe);

@@ -541,10 +541,10 @@ void sendBrewEvent(float inputPressure, float setPressure, float pumpFlowRate, f
     doc["DimmerPower"] = DimmerPower;
 
 
-    String jsonTemps;
-    serializeJson(doc, jsonTemps);
+    String jsonBrew;
+    serializeJson(doc, jsonBrew);
 
-    events.send(jsonTemps.c_str(), "brew_event", millis());
+    events.send(jsonBrew.c_str(), "brew_event", millis());
     //LOGF(DEBUG, "%s", jsonTemps.c_str());
 }
 
