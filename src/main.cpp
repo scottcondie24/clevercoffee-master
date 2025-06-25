@@ -1913,6 +1913,8 @@ void runRecipe(int recipeIndex) {
     static float lastSetPressure = 0.0;
     static float lastFlow = 0.0;
     static float lastSetFlow = 0.0;
+    static float lastBrewWeight = 0.0;
+    static float filteredWeight = 0.0;
     static bool phaseReset = false;
 
     BrewRecipe* recipe = &recipes[recipeIndex];
@@ -1969,6 +1971,8 @@ void runRecipe(int recipeIndex) {
             currentPhaseIndex += 1;
             phaseTiming = timeBrewed;
             phaseReset = true;
+            lastBrewWeight = weightBrewed;
+            filteredWeight = lastBrewWeight;
             if (currentPhaseIndex < recipe->phaseCount) {
                 //use the recipe->phase method as currentPhaseIndex has been incremented
                 LOGF(DEBUG, "Skipping to Phase %d: %s for %.1f seconds", currentPhaseIndex,
@@ -2003,6 +2007,11 @@ void runRecipe(int recipeIndex) {
 
     flowPressureCeiling = phase->max_flow_or_pressure;
     flowPressureRange = phase->max_flow_or_pressure_range;
+
+    if (weightBrewed > filteredWeight) {
+        filteredWeight = weightBrewed;
+    }
+
     if (phase->pump == FLOW) {
         if (phase->transition == TRANSITION_SMOOTH) {
             if(phaseReset) {
@@ -2019,9 +2028,15 @@ void runRecipe(int recipeIndex) {
                 }
                 phaseReset = false;
             }
-            float elapsed = (timeBrewed - phaseTiming) / 1000.0;
-            float t = min(elapsed / phase->seconds, 1.0f);
-            setPumpFlowRate = lastFlow + (phase->flow - lastFlow) * t;
+            if(phase->exit_type == EXIT_TYPE_NONE && phase->weight > 0) {
+                float t = min((filteredWeight - lastBrewWeight) / (phase->weight - lastBrewWeight), 1.0f);
+                setPumpFlowRate = lastFlow + (phase->flow - lastFlow) * t;
+            }
+            else {
+                float elapsed = (timeBrewed - phaseTiming) / 1000.0;
+                float t = min(elapsed / phase->seconds, 1.0f);
+                setPumpFlowRate = lastFlow + (phase->flow - lastFlow) * t;
+            }
         } 
         else {
             if(phaseReset) {
@@ -2050,9 +2065,15 @@ void runRecipe(int recipeIndex) {
                 }
                 phaseReset = false;
             }
-            float elapsed = (timeBrewed - phaseTiming) / 1000.0;
-            float t = min(elapsed / phase->seconds, 1.0f);
-            setPressure = lastPressure + (phase->pressure - lastPressure) * t;
+            if(phase->exit_type == EXIT_TYPE_NONE && phase->weight > 0) {
+                float t = min((filteredWeight - lastBrewWeight) / (phase->weight - lastBrewWeight), 1.0f);
+                setPressure = lastPressure + (phase->pressure - lastPressure) * t;
+            }
+            else {
+                float elapsed = (timeBrewed - phaseTiming) / 1000.0;
+                float t = min(elapsed / phase->seconds, 1.0f);
+                setPressure = lastPressure + (phase->pressure - lastPressure) * t;
+            }
         } 
         else {
             if(phaseReset) {

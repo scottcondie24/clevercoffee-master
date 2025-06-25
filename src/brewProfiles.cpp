@@ -17,7 +17,7 @@ BrewPhase adaptivePhases[] = {
     {"pause", 0, 0, 0, 88.0, 0, 0, 0, 0, 0, 0.0, 0.0, 1.0, EXIT_TYPE_NONE, TRANSITION_FAST, FLOW},  //wait for weightBrewed to be reset
     {"fill", 0, 8.0, 0, 88.0, 5.0, 0, 0.0, 3.0, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},
     {"infuse", 3.0, 1.7, 0, 88.0, 4.0, 0, 0, 0, 0, 8.5, 5.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},        //exits at 4g
-    {"maintain flow", 0.0, 1.7, 0, 88.0, 50.0, 0, 0, 0, 0, 8.6, 0.5, 80.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},    //exits at 50g
+    {"maintain flow", 0.0, 1.7, 0, 88.0, 50.0, 0, 0, 0, 0, 8.6, 0.5, 80.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},    //exits at 50g, ramp by weight
 };
 const int adaptivePhasesCount = sizeof(adaptivePhases) / sizeof(BrewPhase);
 
@@ -27,8 +27,8 @@ BrewPhase londiniumRPhases[] = {
     {"fill", 0, 12.0, 0, 88.0, 5.0, 0, 0.0, 2.5, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},
     {"infuse", 3.0, 1.7, 0, 88.0, 4.0, 0, 0, 0, 0, 0.0, 0.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},        //exits at 4g
     {"rise and hold", 8.6, 0.0, 0, 88.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 2.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE}, //ramp so OPV doesnt immediately open
-    {"decline", 5.0, 0, 0, 88.0, 36.0, 0, 0.0, 0.0, 5.0, 0.0, 0.0, 30.0, EXIT_TYPE_PRESSURE_UNDER, TRANSITION_SMOOTH, PRESSURE},
-    {"end", 0.0, 0.1, 0, 88.0, 36.0, 0, 0, 0, 0, 8.0, 0.5, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
+    {"decline", 5.0, 0, 0, 88.0, 36.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 45.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE}, //ramp by weight
+    {"end", 0.0, 0.1, 0, 88.0, 38.0, 0, 0, 0, 0, 8.0, 0.5, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},//ramp by weight
 };
 const int londiniumRPhasesCount = sizeof(londiniumRPhases) / sizeof(BrewPhase);
 
@@ -38,8 +38,8 @@ BrewPhase londiniumVPhases[] = {
     {"fill", 0, 12.0, 0, 88.0, 5.0, 0, 0.0, 1.0, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},
     {"infuse", 1.2, 1.7, 0, 88.0, 4.0, 0, 0, 0, 0, 0.0, 0.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},        //exits at 4g
     {"rise and hold", 6.5, 0.0, 0, 88.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 2.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE}, //ramp so OPV doesnt immediately open
-    {"decline", 4.0, 0, 0, 88.0, 0.0, 0, 0.0, 0.0, 4.0, 0.0, 0.0, 35.0, EXIT_TYPE_PRESSURE_UNDER, TRANSITION_SMOOTH, PRESSURE},
-    {"end", 0.0, 0.1, 0, 88.0, 0.0, 0, 0, 0, 0, 0.0, 0.0, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
+    {"decline", 4.0, 0, 0, 88.0, 36.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 45.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE},   //ramp by weight
+    {"end", 0.0, 0.1, 0, 88.0, 38.0, 0, 0, 0, 0, 0.0, 0.0, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},//ramp by weight
 };
 const int londiniumVPhasesCount = sizeof(londiniumVPhases) / sizeof(BrewPhase);
 

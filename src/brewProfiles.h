@@ -12,7 +12,7 @@ typedef enum {
     TRANSITION_NONE,
     TRANSITION_SMOOTH,
     TRANSITION_FAST,
-    TRANSITION_HOLD,
+    TRANSITION_HOLD,    //not used yet
 } TransitionType;
 
 
