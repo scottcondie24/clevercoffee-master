@@ -1,6 +1,6 @@
 #include "brewProfiles.h"
 
-//name,pressure,flow,volume,temperature,weight,exit_flow_under,exit_flow_over,exit_pressure_over,exit_pressure_under,max_flow_or_pressure,max_flow_or_pressure_range,seconds,exit_type,transition, pumpcontrol;
+//name,pressure,flow,volume,temperature,weight,exit_flow_under,exit_flow_over,exit_pressure_over,exit_pressure_under,max_secondary,max_secondary_range,seconds,exit_type,transition, pumpcontrol;
 //  0       1       2   3       4           5       6               7               8                   9                       10              11                      12      13         14           15
 
 BrewPhase springLeverPhases[] = {
@@ -42,6 +42,28 @@ BrewPhase londiniumVPhases[] = {
     {"end", 0.0, 0.1, 0, 88.0, 38.0, 0, 0, 0, 0, 0.0, 0.0, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},//ramp by weight
 };
 const int londiniumVPhasesCount = sizeof(londiniumVPhases) / sizeof(BrewPhase);
+
+BrewPhase londiniumRPCPhases[] = {
+        //0    1   2   3   4    5  6   7    8   9  10  11   12       13                     14               15
+    {"pause", 0, 0, 0, 88.0, 0, 0, 0, 0, 0, 0.0, 0.0, 1.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},  //wait for weightBrewed to be reset
+    {"fill", 3.0, 0.0, 0, 88.0, 5.0, 0, 0.0, 2.5, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, PRESSURE},
+    {"infuse", 3.0, 0.0, 0, 88.0, 4.0, 0, 0, 0, 0, 0.0, 0.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},        //exits at 4g
+    {"rise and hold", 8.6, 0.0, 0, 88.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 2.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE}, //ramp so OPV doesnt immediately open
+    {"decline", 5.0, 0, 0, 88.0, 36.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 45.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE}, //ramp by weight
+    {"end", 0.1, 0.0, 0, 88.0, 38.0, 0, 0, 0, 0, 8.0, 0.5, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE},//ramp by weight
+};
+const int londiniumRPCPhasesCount = sizeof(londiniumRPCPhases) / sizeof(BrewPhase);
+
+BrewPhase londiniumVPCPhases[] = {
+        //0    1   2   3   4    5  6   7    8   9  10  11   12       13                     14               15
+    {"pause", 0, 0, 0, 88.0, 0, 0, 0, 0, 0, 0.0, 0.0, 1.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},  //wait for weightBrewed to be reset
+    {"fill", 3.00, 0.0, 0, 88.0, 5.0, 0, 0.0, 1.0, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, PRESSURE},
+    {"infuse", 1.2, 0.0, 0, 88.0, 4.0, 0, 0, 0, 0, 0.0, 0.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},        //exits at 4g
+    {"rise and hold", 6.5, 0.0, 0, 88.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 2.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE}, //ramp so OPV doesnt immediately open
+    {"decline", 4.0, 0, 0, 88.0, 36.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 45.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE},   //ramp by weight
+    {"end", 0.1, 0.0, 0, 88.0, 38.0, 0, 0, 0, 0, 0.0, 0.0, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE},//ramp by weight
+};
+const int londiniumVPCPhasesCount = sizeof(londiniumVPCPhases) / sizeof(BrewPhase);
 
 BrewPhase lightRoastPhases[] = {
     {"fill", 3.5, 0.0, 0, 92.0, 0, 0, 0, 3.0, 0, 0, 0.0, 12.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, PRESSURE},
@@ -95,11 +117,13 @@ BrewPhase testRampPhases[] = {
 };
 const int testRampPhasesCount = sizeof(testRampPhases) / sizeof(BrewPhase);
 
-BrewRecipe recipes[] = {    //displayname, Phases, Count, Temp, Time, Scales, Flow
+BrewProfile profiles[] = {    //displayname, Phases, Count, Temp, Time, Scales, Flow
     {"springLever", springLeverPhases, springLeverPhasesCount, 90.0, 0, false, true},
     {"adaptive", adaptivePhases, adaptivePhasesCount, 88.0, 0, true, true},
     {"londiniumR", londiniumRPhases, londiniumRPhasesCount, 88.0, 0, true, true},
     {"londiniumV", londiniumVPhases, londiniumVPhasesCount, 88.0, 0, true, true},
+    {"londiniumRPressure", londiniumRPCPhases, londiniumRPCPhasesCount, 88.0, 0, true, false},
+    {"londiniumVPressure", londiniumVPCPhases, londiniumVPCPhasesCount, 88.0, 0, true, false},
     {"lightRoast", lightRoastPhases, lightRoastPhasesCount, 92.0, 0, false, true},
     {"sixBarEspresso", sixBarEspressoPhases, sixBarEspressoPhasesCount, 90.0, 0, true, true},
     {"bloomingEspresso", bloomingEspressoPhases, bloomingEspressoPhasesCount, 92.0, 0, false, true},
@@ -108,10 +132,11 @@ BrewRecipe recipes[] = {    //displayname, Phases, Count, Temp, Time, Scales, Fl
     {"testRampFlow", testRampPhases, testRampPhasesCount, 90.0, 0, false, true},
 };
 
-const int recipesCount = sizeof(recipes) / sizeof(BrewRecipe);
+const int profilesCount = sizeof(profiles) / sizeof(BrewProfile);
 
 
-//these recipes could be written like this for better visibility
+
+//these profiles could be written like this for better visibility
 
 /*BrewPhase londiniumPhases[] = {
     {

@@ -53,6 +53,7 @@ int writeSysParamsToStorage(void);
 #define POST_BREW_TIMER_DURATION              3      // time in seconds that brew timer will be shown after brew finished
 #define FEATURE_HEATING_LOGO                  1      // enables full screen logo if mashine is heating
 #define FEATURE_PID_OFF_LOGO                  1      // enables full screen logo if pid is switched off
+#define MAX_PROFILES                          20     // generates the max array size for profile filtering
 
 #define PID_KP_START_MIN             0
 #define PID_KP_START_MAX             999

@@ -28,7 +28,7 @@ typedef struct {
     float pressure, flow, volume, temperature, weight;
     float exit_flow_under, exit_flow_over;
     float exit_pressure_over, exit_pressure_under;
-    float max_flow_or_pressure, max_flow_or_pressure_range;
+    float max_secondary, max_secondary_range;
     float seconds;
     ExitType exit_type;
     TransitionType transition;
@@ -43,7 +43,7 @@ typedef struct {
     float targetTime;
     bool scalesRequired;
     bool flowRequired;
-} BrewRecipe;
+} BrewProfile;
 
-extern const int recipesCount;
-extern BrewRecipe recipes[];
+extern const int profilesCount;
+extern BrewProfile profiles[];

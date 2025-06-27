@@ -107,8 +107,8 @@ float applySmoothOverride(float target, float input, float ceiling, float range,
 }
 
 void looppump() {
-    if(machineState != kBrew) { //moved here from recipes
-        debug_recipe = false;
+    if(machineState != kBrew) { //moved here from profiles
+        debug_profile = false;
         currentPhaseIndex = 0;
         flowPressureCeiling = 0.0;
         flowPressureRange = 0.0;
@@ -148,9 +148,9 @@ void looppump() {
                 //flowPressureCeiling = 8.0; //flow mL/s
                 //flowPressureRange = 6.0;    //reduce to 0 output over 14mL/s
             }
-            else if (control.id == MENU_RECIPE) {
+            else if (control.id == MENU_PROFILE) {
                 if(machineState == kBrew) {
-                    runRecipe(currentRecipeIndex);
+                    runProfile(currentProfileIndex);
                 }
             }
             else if (control.id >= MENU_FLOW) {
@@ -237,8 +237,9 @@ void looppump() {
         pumpintegral = 0;
         previousError = 0;
         previousMillisPumpControl = millis() - pumpControlInterval; //stops large spikes in log data timing
-        PumpDimmerCore::ControlMethod method = (featurePumpDimmer == 2) ? PumpDimmerCore::ControlMethod::PHASE : PumpDimmerCore::ControlMethod::PSM;
-        pumpRelay.setControlMethod(method);
+        //PumpDimmerCore::ControlMethod method = (featurePumpDimmer == 2) ? PumpDimmerCore::ControlMethod::PHASE : PumpDimmerCore::ControlMethod::PSM;
+        //pumpRelay.setControlMethod(method);
+        pumpRelay.setControlMethod((featurePumpDimmer == 2) ? PumpDimmerCore::ControlMethod::PHASE : PumpDimmerCore::ControlMethod::PSM);
     }
 #endif
     blockStart = micros(); //give other functions like display and MQTT some time to refresh

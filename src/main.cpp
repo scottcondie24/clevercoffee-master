@@ -144,16 +144,16 @@ const char* OTApass = OTAPASS;
 
 // Profiles
 #include "brewProfiles.h"
-int currentRecipeIndex = 0;
+int currentProfileIndex = 0;
 int currentPhaseIndex = 0;
 float phaseTiming = 0;
-bool debug_recipe = false;
-const char*  recipeName = recipes[currentRecipeIndex].name;
+bool debug_profile = false;
+const char*  profileName = profiles[currentProfileIndex].name;
 const char*  phaseName = "infuse";
 double lastPreinfusion = PRE_INFUSION_TIME;
 double lastPreinfusionPause = PRE_INFUSION_PAUSE_TIME;
 double lastBrewTime = BREW_TIME;
-double lastTempSetpoint = 0.0;
+double lastBrewSetpoint = 0.0;
 
 //encoder menu
 int menuLevel = 0;
@@ -242,7 +242,7 @@ void buttonCallback(unsigned long);
 void printLoopTimingsAsList(void);
 void printActivityTimingsAsList(void);
 void printLoopPidAsList(void);
-void runRecipe(int);
+void runProfile(int);
 
 // system parameters
 uint8_t pidON = 0;   // 1 = control loop in closed loop
@@ -1906,8 +1906,8 @@ void printLoopPidAsList() {
   }
 }
 
-void runRecipe(int recipeIndex) {
-    if (recipeIndex < 0 || recipeIndex >= recipesCount) return;
+void runProfile(int profileIndex) {
+    if (profileIndex < 0 || profileIndex >= profilesCount) return;
     
     static float lastPressure = 0.0;
     static float lastSetPressure = 0.0;
@@ -1917,22 +1917,22 @@ void runRecipe(int recipeIndex) {
     static float filteredWeight = 0.0;
     static bool phaseReset = false;
 
-    BrewRecipe* recipe = &recipes[recipeIndex];
+    BrewProfile* profile = &profiles[profileIndex];
 
-    if (!debug_recipe) {
-        debug_recipe = true;
-        brewTime = recipe->targetTime;
+    if (!debug_profile) {
+        debug_profile = true;
+        brewTime = profile->targetTime;
         lastPressure = 0.0;
         lastSetPressure = 0.0;
         lastFlow = 0.0;
         lastSetFlow = 0.0;
         phaseTiming = 0;
         phaseReset = true;
-        LOGF(DEBUG, "Running recipe: %s\n", recipe->name);
+        LOGF(DEBUG, "Running profile: %s\n", profile->name);
     }
 
-    while (currentPhaseIndex < recipe->phaseCount) {
-        BrewPhase* phase = &recipe->phases[currentPhaseIndex];
+    while (currentPhaseIndex < profile->phaseCount) {
+        BrewPhase* phase = &profile->phases[currentPhaseIndex];
         phaseName = phase->name;
 
         bool exitReached = false;
@@ -1973,14 +1973,14 @@ void runRecipe(int recipeIndex) {
             phaseReset = true;
             lastBrewWeight = weightBrewed;
             filteredWeight = lastBrewWeight;
-            if (currentPhaseIndex < recipe->phaseCount) {
-                //use the recipe->phase method as currentPhaseIndex has been incremented
+            if (currentPhaseIndex < profile->phaseCount) {
+                //use the profile->phase method as currentPhaseIndex has been incremented
                 LOGF(DEBUG, "Skipping to Phase %d: %s for %.1f seconds", currentPhaseIndex,
-                     recipe->phases[currentPhaseIndex].name,
-                     recipe->phases[currentPhaseIndex].seconds);
+                     profile->phases[currentPhaseIndex].name,
+                     profile->phases[currentPhaseIndex].seconds);
             } 
             else {
-                LOG(DEBUG, "Brew recipe complete");
+                LOG(DEBUG, "Brew profile complete");
                 brewTime = timeBrewed/1000;
                 return;
             }
@@ -1993,9 +1993,9 @@ void runRecipe(int recipeIndex) {
     // Control logic based on phase settings
 
     //check if still in phases, otherwise skip control
-    if (currentPhaseIndex >= recipe->phaseCount) return;
+    if (currentPhaseIndex >= profile->phaseCount) return;
 
-    BrewPhase* phase = &recipe->phases[currentPhaseIndex];
+    BrewPhase* phase = &profile->phases[currentPhaseIndex];
 
     if(phaseReset) {
         LOGF(DEBUG, "Phase %d: %s for %.1f seconds", currentPhaseIndex, phase->name, phase->seconds);
@@ -2005,8 +2005,8 @@ void runRecipe(int recipeIndex) {
     }
 
 
-    flowPressureCeiling = phase->max_flow_or_pressure;
-    flowPressureRange = phase->max_flow_or_pressure_range;
+    flowPressureCeiling = phase->max_secondary;
+    flowPressureRange = phase->max_secondary_range;
 
     if (weightBrewed > filteredWeight) {
         filteredWeight = weightBrewed;
