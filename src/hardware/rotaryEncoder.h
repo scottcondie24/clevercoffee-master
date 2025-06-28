@@ -302,7 +302,7 @@ void drawUI() {
 
 
 
-void handleEncoder(int delta) {
+/*void handleEncoder(int delta) {
   selectedIndex = constrain(selectedIndex + delta, 0, menuItemCount - 1);
   // Add a scroll offset if outside visible range
   if (selectedIndex < menuScrollOffset) {
@@ -327,7 +327,7 @@ void handleEncoderClick() {
     selectedIndex = 0;
     menuScrollOffset = 0;
   }
-}
+}*/
 
 int getEncoderDelta(void) {
     static long lastencodervalue = 0;
@@ -362,9 +362,9 @@ void encoderHandler() {
             drawBrewScreen();
         }*/
         int delta = getEncoderDelta(); // +1 or -1 or 0
-        if (delta != 0) {
-            handleEncoder(delta);
-        }
+        //if (delta != 0) {
+        //    handleEncoder(delta);
+        //}
 
         if(machineState != kBackflush) {
             long value = encoder.getCount() / 2;
@@ -435,7 +435,7 @@ void encoderHandler() {
                     menuLevel = 0;
                 }
                 else {
-                    handleEncoderClick();
+                    //handleEncoderClick();
                     menuLevel = (menuLevel == 1) ? 2 : 1;
                 }
                 LOGF(INFO, "Rotary Encoder Button down for: %lu ms", duration);
