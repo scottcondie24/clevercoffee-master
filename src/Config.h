@@ -301,6 +301,9 @@ class Config {
             _configDefs.emplace("system.ota_password", ConfigDef::forString(OTAPASS, OTAPASS_MAX_LENGTH));
             _configDefs.emplace("system.offline_mode", ConfigDef::forBool(false));
             _configDefs.emplace("system.log_level", ConfigDef::forInt(static_cast<int>(Logger::Level::INFO), 0, 5));
+            // Debugging
+            _configDefs.emplace("system.timing.enabled", ConfigDef::forBool(false));
+            _configDefs.emplace("system.showdisplay.enabled", ConfigDef::forBool(false));
 
             // Display
             _configDefs.emplace("display.template", ConfigDef::forInt(0, 0, 4));

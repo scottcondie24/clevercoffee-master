@@ -47,6 +47,8 @@ extern bool scaleTareOn;
 extern bool scaleCalibrationOn;
 extern int logLevel;
 extern const char sysVersion[64];
+extern bool timingMaster;         // if set to false it lets processes run together, if true it limits how many processes run per loop
+extern bool includeDisplayInLogs; // if set to true it shows every display update, if false it only shows if > 45ms or if running in the same loop as another process
 
 void ParameterRegistry::initialize(Config& config) {
     if (_ready) {
@@ -689,6 +691,25 @@ void ParameterRegistry::initialize(Config& config) {
         (const char* const[]){"TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "FATAL", "SILENT"},
         7,
         "Set the logging verbosity level"
+    );
+
+    // Debugging Checkboxes
+    addBoolConfigParam(
+        "system.timing.enabled",
+        "Activate loop process limit",
+        sSystemSection,
+        1111,
+        &timingMaster,
+        "Enable or disable the process limit per loop"
+    );
+
+    addBoolConfigParam(
+        "system.showdisplay.enabled",
+        "Activate display recording in debug logs",
+        sSystemSection,
+        1112,
+        &includeDisplayInLogs,
+        "Enable or disable showing sendBuffer loops in debug logs"
     );
 
     // Hardware section

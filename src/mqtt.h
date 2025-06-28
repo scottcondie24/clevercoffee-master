@@ -10,10 +10,18 @@
 #include "Parameter.h"
 #include <Arduino.h>
 #include <PubSubClient.h>
+#include <map>
 #include <os.h>
+#include <string>
+
+extern bool timingMaster;
+
+std::map<const char*, std::string> mqttLastSent;
 
 inline unsigned long previousMillisMQTT;
-constexpr unsigned long intervalMQTT = 5000;
+const unsigned long intervalMQTT = 5000;
+const unsigned long intervalMQTTbrew = 500;
+const unsigned long intervalMQTTstandby = 10000;
 
 inline WiFiClient net;
 inline PubSubClient mqtt(net);
@@ -32,6 +40,8 @@ inline char topic_set[256];
 
 inline unsigned long lastMQTTConnectionAttempt = millis();
 inline unsigned int MQTTReCnctCount = 0;
+unsigned long previousMqttConnection = millis();
+unsigned long mqttReconnectInterval = 300000; // 5 minutes
 
 extern std::map<const char*, const char*, cmp_str> mqttVars;
 extern std::map<const char*, std::function<double()>, cmp_str> mqttSensors;
@@ -77,12 +87,18 @@ inline void checkMQTT() {
             if (mqtt.connect(hostname.c_str(), mqtt_username.c_str(), mqtt_password.c_str(), topic_will, 0, true, "offline")) {
                 mqtt.subscribe(topic_set);
                 LOGF(DEBUG, "Subscribed to MQTT Topic: %s", topic_set);
+                MQTTReCnctCount = 0; // reset MQTT reconnect count to zero after a successful connection
             } // Try to reconnect to the server; connect() is a blocking
               // function, watch the timeout!
             else {
                 LOGF(DEBUG, "Failed to connect to MQTT due to reason: %i", mqtt.state());
             }
         }
+    }
+    // reset MQTT reconnect count to zero after mqttReconnectInterval so it can try to connect again
+    else if (millis() - previousMqttConnection >= mqttReconnectInterval) {
+        MQTTReCnctCount = 0;
+        previousMqttConnection = millis();
     }
 }
 
@@ -235,9 +251,14 @@ inline void mqtt_callback(const char* topic, const byte* data, const unsigned in
 
 inline int writeSysParamsToMQTT(const bool continueOnError = true) {
     unsigned long currentMillisMQTT = millis();
+    unsigned long interval = intervalMQTT;
+    if (timingMaster) {
+        interval = (machineState == kBrew) ? intervalMQTTbrew : (machineState == kStandby) ? intervalMQTTstandby : intervalMQTT;
+    }
 
-    if (currentMillisMQTT - previousMillisMQTT >= intervalMQTT && mqtt_enabled) {
+    if (currentMillisMQTT - previousMillisMQTT >= interval && mqtt_enabled) {
         previousMillisMQTT = currentMillisMQTT;
+        mqttUpdateRunning = true;
 
         if (mqtt.connected()) {
             mqtt_publish("status", (char*)"online");
@@ -290,29 +311,40 @@ inline int writeSysParamsToMQTT(const bool continueOnError = true) {
                         continue;
                 }
 
-                if (!mqtt_publish(mqttTopic, data, true)) {
-                    errorState = mqtt.state();
+                std::string value = std::string(data);
 
-                    if (!continueOnError) {
-                        LOGF(ERROR, "Failed to publish parameter %s to MQTT, error: %d", mqttTopic, errorState);
-                        return errorState;
+                if (mqttLastSent[mqttTopic] != value || !timingMaster) {
+                    if (!mqtt_publish(mqttTopic, data, true)) {
+                        errorState = mqtt.state();
+
+                        if (!continueOnError) {
+                            LOGF(ERROR, "Failed to publish parameter %s to MQTT, error: %d", mqttTopic, errorState);
+                            return errorState;
+                        }
+
+                        LOGF(WARNING, "Failed to publish parameter %s to MQTT, error: %d", mqttTopic, errorState);
                     }
-
-                    LOGF(WARNING, "Failed to publish parameter %s to MQTT, error: %d", mqttTopic, errorState);
-                }
-                else {
-                    IFLOG(DEBUG) {
-                        LOGF(DEBUG, "Published %s = %s to MQTT", mqttTopic, data);
+                    else {
+                        mqttLastSent[mqttTopic] = value; // Update only if sent successfully
+                        IFLOG(DEBUG) {
+                            LOGF(DEBUG, "Published %s = %s to MQTT", mqttTopic, data);
+                        }
                     }
                 }
             }
 
             for (const auto& [fst, snd] : mqttSensors) {
-                if (!mqtt_publish(fst, number2string(snd()))) {
-                    errorState = mqtt.state();
+                std::string value = std::string(number2string(snd()));
+                if (mqttLastSent[fst] != value || !timingMaster) {
+                    if (!mqtt_publish(fst, number2string(snd()))) {
+                        errorState = mqtt.state();
 
-                    if (!continueOnError) {
-                        return errorState;
+                        if (!continueOnError) {
+                            return errorState;
+                        }
+                    }
+                    else {
+                        mqttLastSent[fst] = value;
                     }
                 }
             }
@@ -533,6 +565,7 @@ inline DiscoveryObject GenerateNumberDevice(const String& name, const String& di
  * @return 0 if successful, MQTT connection error code if failed to send messages
  */
 inline int sendHASSIODiscoveryMsg() {
+    hassioUpdateRunning = true;
     // Sensor, number and switch objects which will always be published
 
     DiscoveryObject machineStateDevice = GenerateSensorDevice("machineState", "Machine State", "", "enum");

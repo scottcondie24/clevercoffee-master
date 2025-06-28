@@ -105,6 +105,18 @@ float inputPressureFilter = 0;
 const unsigned long intervalPressure = 100;
 unsigned long previousMillisPressure; // initialisation at the end of init()
 
+// timing flags
+bool timingMaster = false;
+bool includeDisplayInLogs = false;
+bool displayBufferReady = false;
+bool displayUpdateRunning = false;
+bool websiteUpdateRunning = false;
+bool mqttUpdateRunning = false;
+bool hassioUpdateRunning = false;
+bool temperatureUpdateRunning = false;
+
+#include "utils/timingDebug.h"
+
 Switch* waterTankSensor = nullptr;
 
 GPIOPin* statusLedPin = nullptr;
@@ -499,6 +511,10 @@ void handleMachineState() {
             if (tempSensor != nullptr && tempSensor->hasError()) {
                 machineState = kSensorError;
             }
+
+            if (machineState != kBrew) {
+                MQTTReCnctCount = 0; // allow MQTT to try to reconnect if exiting brew mode
+            }
             break;
 
         case kManualFlush:
@@ -673,6 +689,9 @@ void handleMachineState() {
                     machineState = kSensorError;
                 }
 
+                if (machineState != kStandby) {
+                    MQTTReCnctCount = 0; // allow MQTT to try to reconnect if exiting standby
+                }
                 break;
             }
 
@@ -1083,11 +1102,24 @@ void loop() {
     // Update LED output based on machine state
     loopLED();
 
+    // print timing related data to check what is causing stutters
+    debugTimingLoop();
+
     // Handle automatic config save
     ParameterRegistry::getInstance().processPeriodicSave();
 }
 
 void loopPid() {
+    // Update the temperature:
+    temperatureUpdateRunning = false;
+    if (tempSensor != nullptr) {
+        temperature = tempSensor->getCurrentTemperature();
+    }
+
+    if (machineState != kSteam) {
+        temperature -= brewTempOffset;
+    }
+
     static bool wifiWasConnected = false;
     // Only do Wifi stuff, if Wifi is connected
     if (WiFi.status() == WL_CONNECTED && !offlineMode) {
@@ -1096,18 +1128,27 @@ void loopPid() {
             wifiWasConnected = true;
         }
         if (mqtt_enabled) {
+            mqttUpdateRunning = false;
             if (getSignalStrength() > 1) {
                 checkMQTT();
-                writeSysParamsToMQTT(true); // Continue on error
+                // if screen is ready to refresh wait for next loop
+                if ((!displayBufferReady && !temperatureUpdateRunning) || !timingMaster) {
+                    writeSysParamsToMQTT(true); // Continue on error
+                }
             }
 
+            hassioUpdateRunning = false;
             if (mqtt.connected() == 1) {
                 mqtt.loop();
+                previousMqttConnection = millis();
 
                 if (mqtt_hassio_enabled) {
-                    hassioDiscoveryTimer();
+                    // resend discovery messages if not during a main function and MQTT has been disconnected but has now reconnected
+                    // this could mean mqtt_was_connected stays false for up to 5 mins but mqtt retains old HASSIO messages
+                    if (!((machineState >= kBrew) && (machineState <= kBackflush)) && ((!mqtt_was_connected && !displayBufferReady && !temperatureUpdateRunning) || !timingMaster)) {
+                        hassioDiscoveryTimer();
+                    }
                 }
-
                 mqtt_was_connected = true;
             }
             // Supress debug messages until we have a connection etablished
@@ -1137,19 +1178,13 @@ void loopPid() {
         checkWifi();
     }
 
-    // Update the temperature:
-    if (tempSensor != nullptr) {
-        temperature = tempSensor->getCurrentTemperature();
-    }
-
-    if (machineState != kSteam) {
-        temperature -= brewTempOffset;
-    }
-
     testEmergencyStop(); // test if temp is too high
     bPID.Compute();      // the variable pidOutput now has new values from PID (will be written to heater pin in ISR.cpp)
 
-    if ((millis() - lastTempEvent) > tempEventInterval) {
+    websiteUpdateRunning = false;
+    // refresh website if loop does not have anoth long running process already
+    if (((millis() - lastTempEvent) > tempEventInterval) && ((!mqttUpdateRunning && !hassioUpdateRunning && !displayBufferReady && !temperatureUpdateRunning) || !timingMaster)) {
+        websiteUpdateRunning = true;
         // send temperatures to website endpoint
         if (WiFi.status() == WL_CONNECTED && !offlineMode) {
             sendTempEvent(temperature, brewSetpoint, pidOutput / 10); // pidOutput is promill, so /10 to get percent value
@@ -1211,11 +1246,25 @@ void loopPid() {
         shouldDisplayBrewTimer();
     }
 
-    // Check if PID should run or not. If not, set to manual and force output to zero
+    displayUpdateRunning = false;
     if (config.get<bool>("hardware.oled.enabled")) {
-        printDisplayTimer();
+        // update display on loops that have not had other major tasks running, if blocked it will send in the next loop (average 0.5ms)
+        if ((((!websiteUpdateRunning) && (!mqttUpdateRunning) && (!hassioUpdateRunning) && (!temperatureUpdateRunning)) || !timingMaster) && (standbyModeRemainingTimeDisplayOffMillis > 0)) {
+
+            if (displayBufferReady) {
+                u8g2->sendBuffer();
+                displayBufferReady = false;
+                displayUpdateRunning = true;
+                // displayUpdateRunning currently doesn't block anything as it is near the end of the loop
+                // sendBuffer() takes around 35ms so it flags that it has happened
+            }
+            else {
+                printDisplayTimer();
+            }
+        }
     }
 
+    // Check if PID should run or not. If not, set to manual and force output to zero
     if (machineState == kPidDisabled || machineState == kWaterTankEmpty || machineState == kSensorError || machineState == kEmergencyStop || machineState == kEepromError || machineState == kStandby ||
         machineState == kBackflush || brewPIDDisabled) {
         if (bPID.GetMode() == 1) {
