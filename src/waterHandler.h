@@ -61,10 +61,10 @@ void waterHandler(void) {
     }
     else if (machineState == kWater || (machineState == kSteam && waterON == 1)) {
         pumpRelay->on();
-        waterStateDebug = "on-sw";                                                                 // turned on due to switch input
+        waterStateDebug = "on-sw"; // turned on due to switch input
     }
     else {
-        if (machineState != kBrew && machineState != kBackflush && machineState != kManualFlush) { // switch turned off and not in brew or flush
+        if (!checkBrewStates()) {  // switch turned off and not in brew or flush
             pumpRelay->off();
             waterStateDebug = "off-sw";
         }

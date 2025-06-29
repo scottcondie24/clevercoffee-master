@@ -321,7 +321,7 @@ void initOfflineMode() {
 void checkWifi() {
     static int wifiConnectCounter = 1;
     static bool wifiConnectedHandled = false;
-    if (offlineMode || currBrewState > kBrewIdle) return;
+    if (offlineMode || checkBrewActive()) return;
 
     // Try to connect and if it does not succeed, enter offline mode
 
@@ -1247,7 +1247,7 @@ void loopPid() {
             LOGF(TRACE, "Current Machinestate: %s", machinestateEnumToString(machineState));
             // Brew
             LOGF(TRACE, "currBrewTime %f", currBrewTime);
-            LOGF(TRACE, "Brew detected %i", brew());
+            LOGF(TRACE, "Brew detected %i", checkBrewActive());
             LOGF(TRACE, "brewPIDdisabled %i", brewPIDDisabled);
         }
     }
@@ -1280,6 +1280,7 @@ void loopPid() {
     updateStandbyTimer();
     handleMachineState();
     waterHandler();
+    valveSafetyShutdownCheck();
 
     if (config.get<bool>("hardware.switches.brew.enabled")) {
         shouldDisplayBrewTimer();
