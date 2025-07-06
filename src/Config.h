@@ -257,6 +257,28 @@ class Config {
             _configDefs.emplace("pid.bd.tn", ConfigDef::forDouble(AGGBTN, PID_TN_BD_MIN, PID_TN_BD_MAX));
             _configDefs.emplace("pid.bd.tv", ConfigDef::forDouble(AGGBTV, PID_TV_BD_MIN, PID_TV_BD_MAX));
 
+            // PID pump dimmer
+            _configDefs.emplace("dimmer.enabled", ConfigDef::forBool(false));
+            _configDefs.emplace("dimmer.type", ConfigDef::forInt(0, 0, 1));
+            _configDefs.emplace("dimmer.mode", ConfigDef::forInt(1, 0, 3));
+            _configDefs.emplace("dimmer.profile", ConfigDef::forInt(1, 0, 12));
+            _configDefs.emplace("dimmer.setpoint.power", ConfigDef::forDouble(PUMP_POWER_SETPOINT, PUMP_POWER_SETPOINT_MIN, PUMP_POWER_SETPOINT_MAX));
+            _configDefs.emplace("dimmer.setpoint.pressure", ConfigDef::forDouble(PUMP_PRESSURE_SETPOINT, PUMP_PRESSURE_SETPOINT_MIN, PUMP_PRESSURE_SETPOINT_MAX));
+            _configDefs.emplace("dimmer.setpoint.flow", ConfigDef::forDouble(PUMP_FLOW_SETPOINT, PUMP_FLOW_SETPOINT_MIN, PUMP_FLOW_SETPOINT_MAX));
+            _configDefs.emplace("dimmer.psm.pressure.kp", ConfigDef::forDouble(PSM_PRESSURE_KP, PUMP_KP_MIN, PUMP_KP_MAX));
+            _configDefs.emplace("dimmer.psm.pressure.ki", ConfigDef::forDouble(PSM_PRESSURE_KI, PUMP_KI_MIN, PUMP_KI_MAX));
+            _configDefs.emplace("dimmer.psm.pressure.kd", ConfigDef::forDouble(PSM_PRESSURE_KD, PUMP_KD_MIN, PUMP_KD_MAX));
+            _configDefs.emplace("dimmer.psm.flow.kp", ConfigDef::forDouble(PSM_FLOW_KP, PUMP_KP_MIN, PUMP_KP_MAX));
+            _configDefs.emplace("dimmer.psm.flow.ki", ConfigDef::forDouble(PSM_FLOW_KI, PUMP_KI_MIN, PUMP_KI_MAX));
+            _configDefs.emplace("dimmer.psm.flow.kd", ConfigDef::forDouble(PSM_FLOW_KD, PUMP_KD_MIN, PUMP_KD_MAX));
+            _configDefs.emplace("dimmer.phase.pressure.kp", ConfigDef::forDouble(PHASE_PRESSURE_KP, PUMP_KP_MIN, PUMP_KP_MAX));
+            _configDefs.emplace("dimmer.phase.pressure.ki", ConfigDef::forDouble(PHASE_PRESSURE_KI, PUMP_KI_MIN, PUMP_KI_MAX));
+            _configDefs.emplace("dimmer.phase.pressure.kd", ConfigDef::forDouble(PHASE_PRESSURE_KD, PUMP_KD_MIN, PUMP_KD_MAX));
+            _configDefs.emplace("dimmer.phase.flow.kp", ConfigDef::forDouble(PHASE_FLOW_KP, PUMP_KP_MIN, PUMP_KP_MAX));
+            _configDefs.emplace("dimmer.phase.flow.ki", ConfigDef::forDouble(PHASE_FLOW_KI, PUMP_KI_MIN, PUMP_KI_MAX));
+            _configDefs.emplace("dimmer.phase.flow.kd", ConfigDef::forDouble(PHASE_FLOW_KD, PUMP_KD_MIN, PUMP_KD_MAX));
+            _configDefs.emplace("dimmer.i_max", ConfigDef::forDouble(PUMP_I_MAX, PUMP_I_MAX_MIN, PUMP_I_MAX_MAX));
+
             // PID steam
             _configDefs.emplace("pid.steam.kp", ConfigDef::forDouble(STEAMKP, PID_KP_STEAM_MIN, PID_KP_STEAM_MAX));
 
@@ -309,6 +331,7 @@ class Config {
             // Debugging
             _configDefs.emplace("system.timing_debug.enabled", ConfigDef::forBool(false));
             _configDefs.emplace("system.showdisplay.enabled", ConfigDef::forBool(true));
+            _configDefs.emplace("system.show_brewdata.enabled", ConfigDef::forBool(true));
 
             // Display
             _configDefs.emplace("display.template", ConfigDef::forInt(0, 0, 4));

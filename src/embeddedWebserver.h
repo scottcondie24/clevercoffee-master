@@ -296,13 +296,13 @@ inline void serverSetup() {
                 bool includeParam = false;
 
                 if (filterType == "hardware") {
-                    includeParam = param->getSection() >= 11 && param->getSection() <= 15;
+                    includeParam = param->getSection() >= 12 && param->getSection() <= 16;
                 }
                 else if (filterType == "behavior") {
-                    includeParam = param->getSection() >= 0 && param->getSection() <= 9;
+                    includeParam = param->getSection() >= 0 && param->getSection() <= 10;
                 }
                 else if (filterType == "other") {
-                    includeParam = param->getSection() == 10;
+                    includeParam = param->getSection() == 11;
                 }
                 else {
                     includeParam = true;
@@ -442,6 +442,8 @@ inline void serverSetup() {
         serializeJson(doc, out);
         request->send(200, "application/json", out);
     });
+
+    server.on("/graph", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(LittleFS, "/graph.html", "text/html"); });
 
     server.on("/wifireset", HTTP_POST, [](AsyncWebServerRequest* request) {
         if (!authenticate(request)) {
@@ -618,4 +620,28 @@ inline void sendTempEvent(const double currentTemp, const double targetTemp, con
 
     events.send("ping", nullptr, millis());
     events.send(getTempString().c_str(), "new_temps", millis());
+}
+
+void sendBrewEvent(float inputPressure, float setPressure, float pumpFlowRate, float setPumpFlowRate, float currBrewWeight, int dimmerPower) {
+    StaticJsonDocument<96> doc;
+
+    doc["inputPressure"] = inputPressure;
+    doc["setPressure"] = setPressure;
+    doc["pumpFlowRate"] = pumpFlowRate;
+    doc["setPumpFlowRate"] = setPumpFlowRate;
+    doc["currBrewWeight"] = currBrewWeight;
+    doc["dimmerPower"] = dimmerPower;
+
+    String jsonBrew;
+    serializeJson(doc, jsonBrew);
+
+    events.send(jsonBrew.c_str(), "brew_event", millis());
+    // LOGF(DEBUG, "%s", jsonTemps.c_str());
+}
+
+void startBrewEvent() {
+    events.send("start", "brew_state", millis());
+}
+void stopBrewEvent() {
+    events.send("stop", "brew_state", millis());
 }

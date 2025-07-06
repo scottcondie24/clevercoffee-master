@@ -26,6 +26,7 @@
 #include "utils/Timer.h"
 
 // Hardware classes
+#include "hardware/Dimmers.h"
 #include "hardware/GPIOPin.h"
 #include "hardware/IOSwitch.h"
 #include "hardware/LED.h"
@@ -35,6 +36,7 @@
 #include "hardware/TempSensorDallas.h"
 #include "hardware/TempSensorTSIC.h"
 #include "hardware/pinmapping.h"
+#include "hardware/pumpControl.h"
 
 // User configuration & defaults
 #include "defaults.h"
@@ -74,6 +76,7 @@ enum MachineState {
 
 MachineState machineState = kInit;
 MachineState lastmachinestate = kInit;
+MachineState lastmachinestatehtml = kInit;
 int lastmachinestatepid = -1;
 
 bool offlineMode = false;
@@ -118,6 +121,13 @@ bool websiteUpdateRunning = false;
 bool mqttUpdateRunning = false;
 bool hassioUpdateRunning = false;
 bool temperatureUpdateRunning = false;
+const int LOOP_HISTORY_SIZE = 20;
+const int TYPE_HISTORY_SIZE = 9;
+unsigned long loopTimings[LOOP_HISTORY_SIZE];
+unsigned long maxLoopTimings[LOOP_HISTORY_SIZE];
+unsigned int activityLoopTimings[LOOP_HISTORY_SIZE];
+unsigned int maxActivityLoopTimings[LOOP_HISTORY_SIZE];
+float PidResults[LOOP_HISTORY_SIZE][TYPE_HISTORY_SIZE]; // Output, Target, Flow, FlowTarget, brewWeight, P, I, D, Timing
 
 #include "utils/timingDebug.h"
 
@@ -135,10 +145,12 @@ GPIOPin heaterRelayPin(PIN_HEATER, GPIOPin::OUT);
 Relay* heaterRelay = nullptr;
 
 GPIOPin pumpRelayPin(PIN_PUMP, GPIOPin::OUT);
-Relay* pumpRelay = nullptr;
+std::unique_ptr<PumpControl> pumpRelay;
 
 GPIOPin valveRelayPin(PIN_VALVE, GPIOPin::OUT);
 Relay* valveRelay = nullptr;
+
+GPIOPin pumpZCPin(PIN_ZC, GPIOPin::IN_HARDWARE);
 
 Switch* powerSwitch = nullptr;
 Switch* brewSwitch = nullptr;
@@ -218,8 +230,18 @@ bool steamFirstON = false;
 
 PID bPID(&temperature, &pidOutput, &setpoint, aggKp, aggKi, aggKd, 1, DIRECT);
 
+// Profiles
+#include "brewProfiles.h"
+int currentProfileIndex = 0;
+int currentPhaseIndex = 0;
+float phaseTiming = 0;
+const char* profileName = profiles[currentProfileIndex].name;
+const char* phaseName = "infuse";
+double lastBrewSetpoint = 0.0;
+
 #include "brewHandler.h"
 #include "hotWaterHandler.h"
+#include "pumpController.h"
 
 // Other variables
 boolean emergencyStop = false;                // Emergency stop if temperature is too high
@@ -256,6 +278,8 @@ std::map<const char*, std::function<double()>, cmp_str> mqttSensors = {};
 
 unsigned long lastTempEvent = 0;
 unsigned long tempEventInterval = 1000;
+unsigned long lastBrewEvent = 0;
+unsigned long brewEventInterval = 100;
 
 Timer hassioDiscoveryTimer(&sendHASSIODiscoveryMsg, 300000);
 
@@ -956,7 +980,16 @@ void setup() {
     valveRelay->off();
 
     const auto pumpTriggerType = static_cast<Relay::TriggerType>(config.get<int>("hardware.relays.pump.trigger_type"));
-    pumpRelay = new Relay(pumpRelayPin, pumpTriggerType);
+
+    if (config.get<bool>("dimmer.enabled")) {
+        pumpRelay = std::make_unique<PumpDimmer>(pumpRelayPin, pumpZCPin, 1);
+        auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
+        dimmer->begin();
+    }
+    else {
+        pumpRelay = std::make_unique<Relay>(pumpRelayPin, pumpTriggerType);
+    }
+
     pumpRelay->off();
 
     if (config.get<bool>("hardware.switches.power.enabled")) {
@@ -1157,6 +1190,11 @@ void setup() {
         machineState = kPidNormal;
         setRuntimePidState(true);
     }
+
+    if (config.get<bool>("dimmer.enabled")) {
+        dimmerTypeHandler();
+        dimmerModeHandler();
+    }
 }
 
 void loop() {
@@ -1171,6 +1209,9 @@ void loop() {
 
     // Update LED output based on machine state
     loopLED();
+
+    // update pump controller
+    loopPump();
 
     // print timing related data to check what is causing stutters
     debugTimingLoop();
@@ -1262,6 +1303,34 @@ void loopPid() {
 
     websiteUpdateRunning = false;
 
+    if ((machineState == kBrew) && (lastmachinestatehtml != kBrew)) {
+        startBrewEvent();
+        lastmachinestatehtml = machineState;
+    }
+    if ((machineState != kBrew) && (lastmachinestatehtml == kBrew)) {
+        stopBrewEvent();
+        lastmachinestatehtml = machineState;
+    }
+
+    if (pumpRelay->getType() == PumpControlType::DIMMER) {
+        if (((millis() - lastBrewEvent) > brewEventInterval) && (machineState == kBrew) && (!mqttUpdateRunning && !hassioUpdateRunning && !displayBufferReady && !temperatureUpdateRunning)) {
+            websiteUpdateRunning = true;
+
+            // send brew data to website endpoint
+            if (pumpControlMode == FLOW) {
+                sendBrewEvent(inputPressureFilter, 0.0, pumpFlowRate, setPumpFlowRate, currBrewWeight, dimmerPower);
+            }
+            else if (pumpControlMode == PRESSURE) {
+                sendBrewEvent(inputPressureFilter, setPressure, pumpFlowRate, 0.0, currBrewWeight, dimmerPower);
+            }
+            else {
+                sendBrewEvent(inputPressureFilter, 0.0, pumpFlowRate, 0.0, currBrewWeight, dimmerPower);
+            }
+
+            lastBrewEvent = millis();
+        }
+    }
+
     // refresh website if loop does not have anoth long running process already
     if (((millis() - lastTempEvent) > tempEventInterval) && (!mqttUpdateRunning && !hassioUpdateRunning && !displayBufferReady && !temperatureUpdateRunning)) {
         websiteUpdateRunning = true;
@@ -1307,6 +1376,11 @@ void loopPid() {
             previousMillisPressure = currentMillisPressure;
             inputPressure = measurePressure();
             inputPressureFilter = filterPressureValue(inputPressure);
+
+            if (pumpRelay->getType() == PumpControlType::DIMMER) {
+                auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
+                pumpFlowRate = dimmer->getFlow(inputPressureFilter);
+            }
         }
     }
 

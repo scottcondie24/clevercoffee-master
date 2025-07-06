@@ -1,0 +1,479 @@
+/**
+ * @file pumpController.h
+ *
+ * @brief PID controller for pump when used with a dimmer
+ *
+ */
+
+inline int dimmerType = 0;
+inline int dimmerMode = 0;
+inline int selectedProfile = 0;
+inline float pumpPowerSetpoint = PUMP_POWER_SETPOINT;
+inline float pumpPressureSetpoint = PUMP_PRESSURE_SETPOINT;
+inline float pumpFlowSetpoint = PUMP_FLOW_SETPOINT;
+inline float psmPressureKp = PSM_PRESSURE_KP;
+inline float psmPressureKi = PSM_PRESSURE_KI;
+inline float psmPressureKd = PSM_PRESSURE_KD;
+inline float psmFlowKp = PSM_FLOW_KP;
+inline float psmFlowKi = PSM_FLOW_KI;
+inline float psmFlowKd = PSM_FLOW_KD;
+inline float phasePressureKp = PHASE_PRESSURE_KP;
+inline float phasePressureKi = PHASE_PRESSURE_KI;
+inline float phasePressureKd = PHASE_PRESSURE_KD;
+inline float phaseFlowKp = PHASE_FLOW_KP;
+inline float phaseFlowKi = PHASE_FLOW_KI;
+inline float phaseFlowKd = PHASE_FLOW_KD;
+inline float pumpIntegratorMax = PUMP_I_MAX;
+
+unsigned long currentMillisPumpControl = 0;
+unsigned long previousMillisPumpControl = 0;
+unsigned long pumpControlInterval = 50;
+unsigned long maxPumpControlInterval = 100;
+
+// unsigned long blockMQTTInterval = 10000;
+// unsigned long blockWebsiteInterval = 40000;
+// unsigned long blockDisplayInterval = 12000;
+// unsigned long blockStart = 0;
+float pumpdt = pumpControlInterval / 1000.0; // Time step in seconds
+
+float flowPressureCeiling = 0;
+float flowPressureRange = 0;
+int loopIndex = 0;
+int loopIndexPid = 0;
+bool triggered = false;
+int triggerCountdown = 0;
+
+float pumpFlowRate = 0;
+float setPressure = pumpPressureSetpoint;
+float setPumpFlowRate = pumpFlowSetpoint;
+PumpMode pumpControlMode = PRESSURE;
+float dimmerPower = pumpPowerSetpoint;
+float pressureKp = PSM_PRESSURE_KP;
+float pressureKi = PSM_PRESSURE_KI;
+float pressureKd = PSM_PRESSURE_KD;
+float flowKp = PSM_FLOW_KP;
+float flowKi = PSM_FLOW_KI;
+float flowKd = PSM_FLOW_KD;
+float pumpIntegral = 0.0;
+float previousError = 0;
+bool startProfile = true;
+
+float applySmoothOverride(float target, float input, float ceiling, float range, int curve = 1) {
+    if (ceiling > 0 && range > 0 && input > ceiling) {
+        float t = (input - ceiling) / range;
+        t = constrain(t, 0.0f, 1.0f);
+        if (curve == 2)
+            t = t * t;     // quadratic
+        else if (curve == 3)
+            t = t * t * t; // cubic
+        // reset integral to reduce windup, could be harsh
+        // pumpIntegral = 0;
+        return target * (1.0f - t);
+    }
+    return target;
+}
+
+void dimmerModeHandler() {
+    static double lastPreinfusion = PRE_INFUSION_TIME;
+    static double lastPreinfusionPause = PRE_INFUSION_PAUSE_TIME;
+    static double lastBrewTime = TARGET_BREW_TIME;
+    pumpIntegral = 0;
+    previousError = 0;
+
+    if (dimmerMode == PROFILE) {
+        profileName = profiles[currentProfileIndex].name;
+        lastBrewSetpoint = brewSetpoint;
+        // brewSetpoint = profiles[currentProfileIndex].targetTemperature;
+        lastPreinfusion = preinfusion;
+        lastPreinfusionPause = preinfusionPause;
+        lastBrewTime = targetBrewTime;
+        preinfusion = 0;      // disable preinfusion time in s
+        preinfusionPause = 0; // disable preinfusion pause time in s
+        LOGF(INFO, "Profile Index: %i -- Profile Name: %s", currentProfileIndex, profileName);
+    }
+    else {
+        // temperature = lastBrewSetpoint;
+        preinfusion = lastPreinfusion;           // preinfusion time in s
+        preinfusionPause = lastPreinfusionPause; // preinfusion pause time in s
+        targetBrewTime = lastBrewTime;           // brewtime in s
+    }
+}
+
+void dimmerTypeHandler() {
+    if (dimmerType == 0) {
+        pressureKp = psmPressureKp;
+        pressureKi = psmPressureKi;
+        pressureKd = psmPressureKd;
+        flowKp = psmFlowKp;
+        flowKi = psmFlowKi;
+        flowKd = psmFlowKd;
+    }
+    else {
+        pressureKp = phasePressureKp;
+        pressureKi = phasePressureKi;
+        pressureKd = phasePressureKd;
+        flowKp = phaseFlowKp;
+        flowKi = phaseFlowKi;
+        flowKd = phaseFlowKd;
+    }
+    if (pumpRelay->getType() == PumpControlType::DIMMER) {
+        auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
+        dimmer->setControlMethod((dimmerType == 1) ? PumpDimmer::ControlMethod::PHASE : PumpDimmer::ControlMethod::PSM);
+    }
+}
+
+void runProfile(int profileIndex) {
+    if (profileIndex < 0 || profileIndex >= profilesCount) return;
+
+    static float lastPressure = 0.0;
+    static float lastSetPressure = 0.0;
+    static float lastFlow = 0.0;
+    static float lastSetFlow = 0.0;
+    static float lastBrewWeight = 0.0;
+    static float filteredWeight = 0.0;
+    static bool phaseReset = false;
+
+    BrewProfile* profile = &profiles[profileIndex];
+
+    if (startProfile) {
+        startProfile = false;
+        targetBrewTime = profile->targetTime;
+        lastPressure = 0.0;
+        lastSetPressure = 0.0;
+        lastFlow = 0.0;
+        lastSetFlow = 0.0;
+        phaseTiming = 0;
+        phaseReset = true;
+        LOGF(DEBUG, "Running profile: %s\n", profile->name);
+    }
+
+    while (currentPhaseIndex < profile->phaseCount) {
+        BrewPhase* phase = &profile->phases[currentPhaseIndex];
+        phaseName = phase->name;
+
+        bool exitReached = false;
+
+        // Transition to next phase if exit condition met
+        switch (phase->exit_type) {
+            case EXIT_TYPE_NONE:
+                exitReached = (currBrewTime > phase->seconds * 1000 + phaseTiming);
+                break;
+
+            case EXIT_TYPE_PRESSURE_OVER:
+                exitReached = (inputPressureFilter >= phase->exit_pressure_over);
+                break;
+
+            case EXIT_TYPE_PRESSURE_UNDER:
+                exitReached = (inputPressureFilter <= phase->exit_pressure_under);
+                break;
+
+            case EXIT_TYPE_FLOW_OVER:
+                exitReached = (pumpFlowRate >= phase->exit_flow_over);
+                break;
+
+            case EXIT_TYPE_FLOW_UNDER:
+                exitReached = (pumpFlowRate <= phase->exit_flow_under);
+                break;
+        }
+        if (phase->weight > 0 && currBrewWeight >= phase->weight) {
+            exitReached = true;
+        }
+
+        if (exitReached || (currBrewTime > phase->seconds * 1000 + phaseTiming)) {
+            lastPressure = inputPressureFilter;
+            lastSetPressure = phase->pressure;
+            lastFlow = pumpFlowRate;
+            lastSetFlow = phase->flow;
+            currentPhaseIndex += 1;
+            phaseTiming = currBrewTime;
+            phaseReset = true;
+            lastBrewWeight = currBrewWeight;
+            filteredWeight = lastBrewWeight;
+            if (currentPhaseIndex < profile->phaseCount) {
+                // use the profile->phase method as currentPhaseIndex has been incremented
+                LOGF(DEBUG, "Skipping to Phase %d: %s for %.1f seconds", currentPhaseIndex, profile->phases[currentPhaseIndex].name, profile->phases[currentPhaseIndex].seconds);
+            }
+            else {
+                LOG(DEBUG, "Brew profile complete");
+                targetBrewTime = currBrewTime / 1000;
+                return;
+            }
+        }
+        else {
+            break; // Stay in current phase
+        }
+    }
+
+    // Control logic based on phase settings
+
+    // check if still in phases, otherwise skip control
+    if (currentPhaseIndex >= profile->phaseCount) return;
+
+    BrewPhase* phase = &profile->phases[currentPhaseIndex];
+
+    if (phaseReset) {
+        LOGF(DEBUG, "Phase %d: %s for %.1f seconds", currentPhaseIndex, phase->name, phase->seconds);
+        if ((phase->transition == TRANSITION_SMOOTH) && (phase->seconds < 1.0)) {
+            LOGF(WARNING, "Phase '%s' duration (%.2f s) is less than recommended minimum of 1 second for smooth transitions", phase->name, phase->seconds);
+        }
+    }
+
+    flowPressureCeiling = phase->max_secondary;
+    flowPressureRange = phase->max_secondary_range;
+
+    if (currBrewWeight > filteredWeight) {
+        filteredWeight = currBrewWeight;
+    }
+
+    if (phase->pump == FLOW) {
+        if (phase->transition == TRANSITION_SMOOTH) {
+            if (phaseReset) {
+                if (pumpControlMode == PRESSURE) { // scale integral error if pumpControlMode was PRESSURE
+                    pumpIntegral = pumpIntegral * (pressureKi / flowKi);
+                    previousError = 0;
+                    pumpControlMode = FLOW;
+                    if (lastSetFlow > 0) { // if a flow rate was specified in a pressure phase, start a smooth transition from here
+                        lastFlow = lastSetFlow;
+                    }
+                }
+                else {
+                    lastFlow = lastSetFlow; // if already in FLOW mode then continue from last requested flow rate, otherwise use last measured as starting point
+                }
+                phaseReset = false;
+            }
+            if (phase->exit_type == EXIT_TYPE_NONE && phase->weight > 0) {
+                float t = min((filteredWeight - lastBrewWeight) / (phase->weight - lastBrewWeight), 1.0f);
+                setPumpFlowRate = lastFlow + (phase->flow - lastFlow) * t;
+            }
+            else {
+                float elapsed = (currBrewTime - phaseTiming) / 1000.0;
+                float t = min(elapsed / phase->seconds, 1.0f);
+                setPumpFlowRate = lastFlow + (phase->flow - lastFlow) * t;
+            }
+        }
+        else {
+            if (phaseReset) {
+                pumpIntegral = 0;
+                previousError = 0;
+                phaseReset = false;
+            }
+            pumpControlMode = FLOW;
+            setPumpFlowRate = phase->flow;
+        }
+        setPressure = 0;
+    }
+    else if (phase->pump == PRESSURE) {
+        if (phase->transition == TRANSITION_SMOOTH) {
+            if (phaseReset) {
+                if (pumpControlMode == FLOW) { // scale integral error if pumpControlMode was FLOW
+                    pumpIntegral = pumpIntegral * (flowKi / pressureKi);
+                    previousError = 0;
+                    pumpControlMode = PRESSURE;
+                    if (lastSetPressure > 0) { // if a pressure was specified in a flow phase, start a smooth transition from here
+                        lastPressure = lastSetPressure;
+                    }
+                }
+                else {
+                    lastPressure = lastSetPressure; // if already in PRESSURE mode then continue from last requested pressure, otherwise use last measured as starting point
+                }
+                phaseReset = false;
+            }
+            if (phase->exit_type == EXIT_TYPE_NONE && phase->weight > 0) {
+                float t = min((filteredWeight - lastBrewWeight) / (phase->weight - lastBrewWeight), 1.0f);
+                setPressure = lastPressure + (phase->pressure - lastPressure) * t;
+            }
+            else {
+                float elapsed = (currBrewTime - phaseTiming) / 1000.0;
+                float t = min(elapsed / phase->seconds, 1.0f);
+                setPressure = lastPressure + (phase->pressure - lastPressure) * t;
+            }
+        }
+        else {
+            if (phaseReset) {
+                pumpIntegral = 0;
+                previousError = 0;
+                phaseReset = false;
+            }
+            pumpControlMode = PRESSURE;
+            setPressure = phase->pressure;
+        }
+        setPumpFlowRate = 0;
+    }
+    else {
+        // Fallback: infer from pressure/flow, but shouldnt ever get here
+        if (phase->pressure > 0) {
+            pumpControlMode = PRESSURE;
+            setPressure = phase->pressure;
+            setPumpFlowRate = 0;
+        }
+        else {
+            pumpControlMode = FLOW;
+            setPumpFlowRate = phase->flow;
+            setPressure = 0;
+        }
+    }
+}
+
+void loopPump() {
+    if (machineState != kBrew) {
+        startProfile = true;
+        currentPhaseIndex = 0;
+        flowPressureCeiling = 0.0;
+        flowPressureRange = 0.0;
+    }
+
+    if (config.get<bool>("dimmer.enabled")) {
+        static float inputPID = 0.0;
+        static float targetPID = 0.0;
+        static float inputKp = 0.0;
+        static float inputKi = 0.0;
+        static float inputKd = 0.0;
+        static int lastDimmerMode = 0;
+        static int lastDimmerType = 0;
+        static float maxLoggedPressure = 0.0;
+
+        if (dimmerMode != lastDimmerMode) {
+            dimmerModeHandler();
+            lastDimmerMode = dimmerMode;
+        }
+        if (selectedProfile != currentProfileIndex) {
+            currentProfileIndex = selectedProfile;
+            dimmerModeHandler();
+        }
+        if (dimmerType != lastDimmerType) {
+            dimmerTypeHandler();
+            lastDimmerType = dimmerType;
+        }
+        if (dimmerMode == PRESSURE) {
+            setPressure = pumpPressureSetpoint;
+        }
+        if (dimmerMode == FLOW) {
+            setPumpFlowRate = pumpFlowSetpoint;
+        }
+        if (dimmerMode == POWER) {
+            dimmerPower = pumpPowerSetpoint;
+        }
+
+        if (pumpRelay->getState()) {
+            currentMillisPumpControl = millis();
+
+            if (currentMillisPumpControl - previousMillisPumpControl >= pumpControlInterval) {       // 50ms timing
+
+                if (currentMillisPumpControl - previousMillisPumpControl > maxPumpControlInterval) { // if greater than 100ms, set pumpdt to 100ms to stop jumps due to an extended freeze
+                    pumpdt = maxPumpControlInterval / 1000.0;
+                }
+                else {
+                    pumpdt = (currentMillisPumpControl - previousMillisPumpControl) / 1000.0; // set to between 50ms and 100ms
+                }
+
+                PidResults[loopIndexPid][8] = currentMillisPumpControl - previousMillisPumpControl;
+                previousMillisPumpControl = currentMillisPumpControl;
+
+                PidResults[loopIndexPid][0] = inputPressure;
+                PidResults[loopIndexPid][1] = setPressure;
+                PidResults[loopIndexPid][2] = pumpFlowRate;
+                PidResults[loopIndexPid][3] = setPumpFlowRate;
+                PidResults[loopIndexPid][4] = currBrewWeight;
+
+                if (dimmerMode == POWER) {
+                    pumpControlMode = POWER;
+                }
+                else if (dimmerMode == PRESSURE) {
+                    pumpControlMode = PRESSURE;
+                }
+                else if (dimmerMode == FLOW) {
+                    pumpControlMode = FLOW;
+                    // flowPressureCeiling = 9.0; //pressure bar
+                    // flowPressureRange = 0.2;    //reduce to 0 output over 9.2bar
+                }
+                else if (dimmerMode == PROFILE) {
+                    if (machineState == kBrew) {
+                        runProfile(currentProfileIndex);
+                    }
+                }
+
+                // override for flush and backflush
+                if (machineState == kBackflush) {
+                    pumpControlMode = PRESSURE;
+                }
+                if (machineState == kManualFlush) {
+                    pumpControlMode = FLOW;
+                }
+
+                if (pumpControlMode == PRESSURE) {  // pressure
+                    inputPID = inputPressureFilter; // inputPressure;
+                    targetPID = (machineState == kBackflush) ? 9.0f : pumpPressureSetpoint;
+                    // Smooth flow override, doesnt work well in pressure
+                    targetPID = applySmoothOverride(targetPID, pumpFlowRate, flowPressureCeiling, flowPressureRange, 2); // 1 is linear reduction, 2 quadratic, 3 cubic
+                    inputKp = pressureKp;
+                    inputKi = pressureKi;
+                    inputKd = pressureKd;
+                }
+                else if (pumpControlMode == FLOW) { // flow and PID tuning
+                    inputPID = pumpFlowRate;
+                    targetPID = (machineState == kManualFlush) ? 10.0f : pumpFlowSetpoint;
+                    // Smooth pressure override
+                    targetPID = applySmoothOverride(targetPID, inputPressureFilter, flowPressureCeiling, flowPressureRange, 2); // 1 is linear reduction, 2 quadratic, 3 cubic
+                    inputKp = flowKp;
+                    inputKi = flowKi;
+                    inputKd = flowKd;
+                }
+                else {
+                    inputPID = 0.0;
+                    targetPID = 0.0;
+                    inputKp = 0.0;
+                    inputKi = 0.0;
+                    inputKd = 0.0;
+                }
+
+                if (pumpControlMode == POWER) {
+                    dimmerPower = constrain((int)dimmerPower, PUMP_POWER_SETPOINT_MIN, PUMP_POWER_SETPOINT_MAX);
+                }
+                else {
+                    float error = targetPID - inputPID;
+                    pumpIntegral += error * pumpdt; // Integrate error
+                    pumpIntegral = constrain(pumpIntegral, -pumpIntegratorMax, pumpIntegratorMax);
+                    float pumpderivative = (error - previousError) / pumpdt;
+                    previousError = error;
+                    // PID output
+                    float output = (inputKp * error) + (inputKi * pumpIntegral) + (inputKd * pumpderivative);
+
+                    PidResults[loopIndexPid][5] = inputKp * error;
+                    PidResults[loopIndexPid][6] = inputKi * pumpIntegral;
+                    PidResults[loopIndexPid][7] = inputKd * pumpderivative;
+
+                    dimmerPower = constrain((int)output, PUMP_POWER_SETPOINT_MIN, PUMP_POWER_SETPOINT_MAX);
+                }
+                // Only update if power changed
+                if (pumpRelay->getType() == PumpControlType::DIMMER) {
+                    auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
+                    if (dimmer->getPower() != dimmerPower) {
+                        dimmer->setPower(dimmerPower);
+                    }
+                }
+
+                // DEBUGGING
+                if (inputPressure > maxLoggedPressure) {
+                    maxLoggedPressure = inputPressure;
+                }
+                loopIndexPid = (loopIndexPid + 1) % LOOP_HISTORY_SIZE;
+
+                // Count down and log when ready
+                if (loopIndexPid == 0) {
+                    if (maxLoggedPressure > 0.10) {
+                        if (config.get<bool>("system.show_brewdata.enabled")) {
+                            printLoopPidAsList();
+                        }
+                    }
+                    maxLoggedPressure = 0;
+                }
+            }
+        }
+        else {                                                          // Pump turned off
+            pumpIntegral = 0;
+            previousError = 0;
+            previousMillisPumpControl = millis() - pumpControlInterval; // stops large spikes in log data timing
+        }
+    }
+    // blockStart = micros(); //give other functions like display and MQTT some time to refresh
+}
