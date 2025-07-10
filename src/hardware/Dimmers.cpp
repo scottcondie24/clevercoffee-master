@@ -4,8 +4,10 @@ const char* controlMethodToString(PumpDimmer::ControlMethod method) {
     switch (method) {
         case PumpDimmer::ControlMethod::PSM:
             return "PSM";
+
         case PumpDimmer::ControlMethod::PHASE:
             return "PHASE";
+
         default:
             return "Unknown";
     }
@@ -22,6 +24,7 @@ void PumpDimmer::begin() {
     _out.write(LOW);
 
     _timer = timerBegin(_timerNum, 80, true); // 80 prescaler = 1 µs ticks (assuming 80 MHz APB clock)
+
     timerAttachInterrupt(
         _timer,
         []() {
@@ -48,9 +51,7 @@ void PumpDimmer::begin() {
 }
 
 void PumpDimmer::setPower(int power) {
-    if (power < 0) power = 0;
-    if (power > 100) power = 100;
-    _power = power;
+    _power = constrain((int)power, 0, 100);
 }
 
 int PumpDimmer::getPower() const {
@@ -61,6 +62,7 @@ void PumpDimmer::on() {
     if (!_state && _method == ControlMethod::PSM) {
         resetPSMCounter();
     }
+
     _state = true;
 }
 
@@ -82,11 +84,12 @@ float PumpDimmer::getFlow(float pressure) const {
 
 void PumpDimmer::setControlMethod(ControlMethod method) {
     if (_method == method) {
-        // Same method, no need to change interrupt
         return;
     }
+
     detachInterrupt(_zc.getPin());
     _method = method;
+
     if (_method == ControlMethod::PHASE) {
         attachInterrupt(_zc.getPin(), onZeroCrossPhaseStatic, RISING);
     }
@@ -106,7 +109,11 @@ void PumpDimmer::resetPSMCounter() {
 
 void PumpDimmer::handlePSMZeroCross() {
     unsigned long now = millis();
-    if (now - _lastZC < 15) return; // Debounce
+
+    if (now - _lastZC < 15) {
+        return; // Debounce
+    }
+
     _lastZC = now;
 
     if (_power <= 0 || !_state) {
@@ -115,6 +122,7 @@ void PumpDimmer::handlePSMZeroCross() {
     }
 
     _psmAccumulated += _power;
+
     if (_psmAccumulated >= 100) {
         _out.write(HIGH);
         _psmAccumulated -= 100;

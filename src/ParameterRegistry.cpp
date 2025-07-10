@@ -556,6 +556,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_POWER_SETPOINT_MAX,
             "Percent of output power the pump will run at"
         );
+
         addNumericConfigParam<float>(
             "dimmer.setpoint.pressure",
             "Pump Pressure Setpoint",
@@ -567,6 +568,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_PRESSURE_SETPOINT_MAX,
             "Pressure the PID controller will target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.setpoint.flow",
             "Pump Flow Setpoint",
@@ -578,6 +580,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_FLOW_SETPOINT_MAX,
             "Flow rate the PID controller will target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.psm.pressure.kp",
             "PSM Pressure Kp",
@@ -589,6 +592,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_KP_MAX,
             "Proportional gain for Pulse Skip control with pressure target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.psm.pressure.ki",
             "PSM Pressure Ki",
@@ -600,6 +604,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_KI_MAX,
             "Integral gain for Pulse Skip control with pressure target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.psm.pressure.kd",
             "PSM Pressure Kd",
@@ -611,6 +616,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_KD_MAX,
             "Derivative gain for Pulse Skip control with pressure target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.psm.flow.kp",
             "PSM Flow Kp",
@@ -622,6 +628,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_KP_MAX,
             "Proportional gain for Pulse Skip control with flow target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.psm.flow.ki",
             "PSM Flow Ki",
@@ -633,6 +640,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_KI_MAX,
             "Integral gain for Pulse Skip control with flow target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.psm.flow.kd",
             "PSM Flow Kd",
@@ -644,6 +652,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_KD_MAX,
             "Derivative gain for Pulse Skip control with flow target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.phase.pressure.kp",
             "Phase Pressure Kp",
@@ -655,6 +664,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_KP_MAX,
             "Proportional gain for Phase control with pressure target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.phase.pressure.ki",
             "Phase Pressure Ki",
@@ -666,6 +676,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_KI_MAX,
             "Integral gain for Phase control with pressure target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.phase.pressure.kd",
             "Phase Pressure Kd",
@@ -677,6 +688,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_KD_MAX,
             "Derivative gain for Phase control with pressure target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.phase.flow.kp",
             "Phase Flow Kp",
@@ -688,6 +700,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_KP_MAX,
             "Proportional gain for Phase control with flow target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.phase.flow.ki",
             "Phase Flow Ki",
@@ -699,6 +712,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_KI_MAX,
             "Integral gain for Phase control with flow target"
         );
+
         addNumericConfigParam<float>(
             "dimmer.phase.flow.kd",
             "Phase Flow Kd",
@@ -710,6 +724,7 @@ void ParameterRegistry::initialize(Config& config) {
             PUMP_KD_MAX,
             "Derivative gain for Phase control with flow target"
         );
+        
         addNumericConfigParam<float>(
             "dimmer.i_max",
             "Pump PID Integrator Max",

@@ -181,6 +181,8 @@ int writeSysParamsToMQTT(bool continueOnError);
 void updateStandbyTimer();
 void resetStandbyTimer();
 void wiFiReset();
+void listLittleFSFilesRecursive(File dir, int depth);
+void listLittleFSRoot();
 
 // debugging water pump actions
 String hotWaterStateDebug = "off";
@@ -235,8 +237,8 @@ PID bPID(&temperature, &pidOutput, &setpoint, aggKp, aggKi, aggKd, 1, DIRECT);
 int currentProfileIndex = 0;
 int currentPhaseIndex = 0;
 float phaseTiming = 0;
-const char* profileName = profiles[currentProfileIndex].name;
-const char* phaseName = "infuse";
+const char* profileName = nullptr;
+const char* phaseName = nullptr;
 double lastBrewSetpoint = 0.0;
 
 #include "brewHandler.h"
@@ -436,14 +438,49 @@ char* number2string(const unsigned int in) {
     return number2string_uint;
 }
 
+void listLittleFSFilesRecursive(File dir, int depth = 0) {
+    while (true) {
+        File entry = dir.openNextFile();
+
+        if (!entry) {
+            break;
+        }
+
+        for (int i = 0; i < depth; i++)
+            Serial.print("  ");
+
+        if (entry.isDirectory()) {
+            Serial.printf("DIR : %s\n", entry.name());
+            listLittleFSFilesRecursive(entry, depth + 1);
+        }
+        else {
+            Serial.printf("FILE: %s (%u bytes)\n", entry.name(), entry.size());
+        }
+
+        entry.close();
+    }
+}
+
+void listLittleFSRoot() {
+    File root = LittleFS.open("/");
+
+    if (!root || !root.isDirectory()) {
+        Serial.println("Failed to open root directory");
+        return;
+    }
+
+    Serial.println("Listing LittleFS contents...");
+    listLittleFSFilesRecursive(root);
+}
+
 /**
  * @brief Filter input value using exponential moving average filter (using fixed coefficients)
  *      After ~28 cycles the input is set to 99,66% if the real input value sum of inX and inY
  *      multiplier must be 1 increase inX multiplier to make the filter faster
  */
 float filterPressureValue(const float input) {
-    inX = static_cast<float>(input * 0.3);
-    inY = static_cast<float>(inOld * 0.7);
+    inX = static_cast<float>(input * 0.2); // 0.3
+    inY = static_cast<float>(inOld * 0.8); // 0.7
     inSum = inX + inY;
     inOld = inSum;
 
@@ -985,6 +1022,7 @@ void setup() {
         pumpRelay = std::make_unique<PumpDimmer>(pumpRelayPin, pumpZCPin, 1);
         auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
         dimmer->begin();
+        dimmer->setPower(0);
     }
     else {
         pumpRelay = std::make_unique<Relay>(pumpRelayPin, pumpTriggerType);
@@ -1191,9 +1229,46 @@ void setup() {
         setRuntimePidState(true);
     }
 
+    listLittleFSRoot();
+
     if (config.get<bool>("dimmer.enabled")) {
+        parseDefaultProfiles();
+        populateProfileNames();
+        profilesCount = loadedProfiles.size();
+        LOGF(INFO, "Loaded %d brew profiles", profilesCount);
+        if (currentProfileIndex >= profilesCount) {
+            currentProfileIndex = 0;
+        }
         dimmerTypeHandler();
-        dimmerModeHandler();
+
+        BrewProfile* profile = getProfile(currentProfileIndex);
+        if (profile) {
+            profileName = profile->name;
+
+            if (profile->phaseCount > 0 && profile->phases) {
+                phaseName = profile->phases[currentPhaseIndex].name; // first phase name
+            }
+            else {
+                phaseName = "No phases";
+            }
+        }
+        else {
+            LOG(WARNING, "Profile not found");
+        }
+
+        // parameterRegistry.remove("dimmer.profile");
+
+        // Re-add with actual profile names
+        // addEnumConfigParam(
+        //    "dimmer.profile",
+        //    "Dimmer Profile Selection",
+        //    sPumpPidSection,
+        //    1412,
+        //   &selectedProfile,
+        //    profileNames.data(),
+        //    profileNames.size(),
+        //    "Profile to control the pump during brew"
+        //);
     }
 }
 

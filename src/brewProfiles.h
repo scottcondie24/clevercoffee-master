@@ -1,5 +1,8 @@
 #pragma once
 
+#include <Stream.h>
+#include <vector>
+
 typedef enum {
     EXIT_TYPE_NONE,
     EXIT_TYPE_FLOW_UNDER,
@@ -36,13 +39,26 @@ typedef struct {
 
 typedef struct {
         const char* name;
+        const char* shortname;
         BrewPhase* phases;
         int phaseCount;
-        float targetTemperature;
-        float targetTime;
-        bool scalesRequired;
-        bool flowRequired;
+        float temperature;
+        float time;
+        bool scales;
+        bool flow;
 } BrewProfile;
 
-extern const int profilesCount;
-extern BrewProfile profiles[];
+// converting to JSON for profiles
+
+extern std::vector<BrewProfile> loadedProfiles;
+extern size_t profilesCount;
+
+void populateProfileNames();
+BrewProfile* getProfile(size_t i);
+ExitType parseExitType(const char* str);
+TransitionType parseTransition(const char* str);
+PumpMode parsePump(const char* str);
+
+void parseDefaultProfiles();
+bool loadProfile(const char* json, BrewPhase* phases, size_t maxPhases, size_t& outCount);
+void saveProfile(BrewPhase* phases, size_t count, Stream& out);

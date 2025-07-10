@@ -1,173 +1,205 @@
 #include "brewProfiles.h"
+#include "brewProfilesJson.h"
+#include <ArduinoJson.h>
 
-// name,pressure,flow,volume,weight,exit_flow_under,exit_flow_over,exit_pressure_over,exit_pressure_under,max_secondary,max_secondary_range,seconds,exit_type,transition, pumpmode;
-//   0       1       2   3       4           5            6               7               8                   9                       10         11      12      13         14
+std::vector<BrewProfile> loadedProfiles;
+std::vector<const char*> profileNames;
 
-BrewPhase springLeverPhases[] = {
-    // 0    1   2   3   4  5  6   7    8  9  10  11         12                      13             14
-    {"infuse", 0, 8.0, 0, 0, 0, 0.0, 4.0, 0, 0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},
-    {"rise and hold", 8.6, 0.0, 0, 0, 0, 0, 0, 0, 0, 0.0, 4.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},
-    {"decline", 6.0, 0.0, 0, 0, 0, 0.0, 0.0, 6.0, 0.0, 0.0, 30.0, EXIT_TYPE_PRESSURE_UNDER, TRANSITION_SMOOTH, PRESSURE},
-    {"maintain flow", 0.0, 1.5, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 30.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
-};
-const int springLeverPhasesCount = sizeof(springLeverPhases) / sizeof(BrewPhase);
+size_t profilesCount = 0;
 
-BrewPhase adaptivePhases[] = {
-    // 0    1  2  3  4 5  6   7  8   9  10  11        12              13             14
-    {"pause", 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 1.0, EXIT_TYPE_NONE, TRANSITION_FAST, FLOW},                   // wait for currBrewWeight to be reset
-    {"fill", 0, 8.0, 0, 5.0, 0, 0.0, 3.0, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},
-    {"infuse", 3.0, 1.7, 0, 4.0, 0, 0, 0, 0, 8.5, 5.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},       // exits at 4g
-    {"maintain flow", 0.0, 1.7, 0, 50.0, 0, 0, 0, 0, 8.6, 0.5, 80.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW}, // exits at 50g, ramp by weight
-};
-const int adaptivePhasesCount = sizeof(adaptivePhases) / sizeof(BrewPhase);
+const char* exitTypeStrs[] = {"none", "flow_under", "flow_over", "pressure_under", "pressure_over"};
+const char* transitionStrs[] = {"none", "smooth", "fast", "hold"};
+const char* pumpModeStrs[] = {"power", "pressure", "flow"};
 
-BrewPhase londiniumRPhases[] = {
-    // 0   1  2  3  4  5  6  7  8   9   10   11      12              13              14
-    {"pause", 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 1.0, EXIT_TYPE_NONE, TRANSITION_FAST, FLOW},                     // wait for currBrewWeight to be reset
-    {"fill", 0, 12.0, 0, 5.0, 0, 0.0, 2.5, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},
-    {"infuse", 3.0, 1.7, 0, 4.0, 0, 0, 0, 0, 0.0, 0.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},         // exits at 4g
-    {"rise and hold", 8.6, 0.0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 2.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE}, // ramp so OPV doesnt immediately open
-    {"decline", 5.0, 0, 0, 36.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 45.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE}, // ramp by weight
-    {"end", 0.0, 0.1, 0, 38.0, 0, 0, 0, 0, 8.0, 0.5, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},              // ramp by weight
-};
-const int londiniumRPhasesCount = sizeof(londiniumRPhases) / sizeof(BrewPhase);
+void populateProfileNames() {
+    profileNames.clear();
+    for (auto& profile : loadedProfiles) {
+        profileNames.push_back(profile.name);
+    }
+}
 
-BrewPhase londiniumVPhases[] = {
-    // 0  1   2  3  4  5  6  7  8   9   10   11      12              13              14
-    {"pause", 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 1.0, EXIT_TYPE_NONE, TRANSITION_FAST, FLOW},                     // wait for currBrewWeight to be reset
-    {"fill", 0, 12.0, 0, 5.0, 0, 0.0, 1.0, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},
-    {"infuse", 1.2, 1.7, 0, 4.0, 0, 0, 0, 0, 0.0, 0.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},         // exits at 4g
-    {"rise and hold", 6.5, 0.0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 2.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE}, // ramp so OPV doesnt immediately open
-    {"decline", 4.0, 0, 0, 36.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 45.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE}, // ramp by weight
-    {"end", 0.0, 0.1, 0, 38.0, 0, 0, 0, 0, 0.0, 0.0, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},              // ramp by weight
-};
-const int londiniumVPhasesCount = sizeof(londiniumVPhases) / sizeof(BrewPhase);
+BrewProfile* getProfile(size_t i) {
+    if (i < loadedProfiles.size()) {
+        return &loadedProfiles[i];
+    }
 
-BrewPhase londiniumRPCPhases[] = {
-    // 0   1  2  3  4  5  6  7  8   9   10    11    12              13               14
-    {"pause", 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 1.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},                 // wait for currBrewWeight to be reset
-    {"fill", 3.0, 0.0, 0, 5.0, 0, 0.0, 2.5, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, PRESSURE},
-    {"infuse", 3.0, 0.0, 0, 4.0, 0, 0, 0, 0, 0.0, 0.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},         // exits at 4g
-    {"rise and hold", 8.6, 0.0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 2.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE}, // ramp so OPV doesnt immediately open
-    {"decline", 5.0, 0, 0, 36.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 45.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE}, // ramp by weight
-    {"end", 0.1, 0.0, 0, 38.0, 0, 0, 0, 0, 8.0, 0.5, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE},          // ramp by weight
-};
-const int londiniumRPCPhasesCount = sizeof(londiniumRPCPhases) / sizeof(BrewPhase);
+    return nullptr;
+}
 
-BrewPhase londiniumVPCPhases[] = {
-    // 0   1  2  3  4  5  6  7  8  9    10    11   12               13              14
-    {"pause", 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 1.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},                 // wait for weightBrewed to be reset
-    {"fill", 3.00, 0.0, 0, 5.0, 0, 0.0, 1.0, 0, 0.0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, PRESSURE},
-    {"infuse", 1.2, 0.0, 0, 4.0, 0, 0, 0, 0, 0.0, 0.0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},         // exits at 4g
-    {"rise and hold", 6.5, 0.0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 2.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE}, // ramp so OPV doesnt immediately open
-    {"decline", 4.0, 0, 0, 36.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 45.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE}, // ramp by weight
-    {"end", 0.1, 0.0, 0, 38.0, 0, 0, 0, 0, 0.0, 0.0, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE},          // ramp by weight
-};
-const int londiniumVPCPhasesCount = sizeof(londiniumVPCPhases) / sizeof(BrewPhase);
+ExitType parseExitType(const char* str) {
+    if (strcmp(str, "flow_over") == 0) {
+        return EXIT_TYPE_FLOW_UNDER;
+    }
+    else if (strcmp(str, "flow_over") == 0) {
+        return EXIT_TYPE_FLOW_OVER;
+    }
+    else if (strcmp(str, "pressure_under") == 0) {
+        return EXIT_TYPE_PRESSURE_UNDER;
+    }
+    else if (strcmp(str, "pressure_over") == 0) {
+        return EXIT_TYPE_PRESSURE_OVER;
+    }
 
-BrewPhase lightRoastPhases[] = {
-    // 0   1    2   3  4  5  6   7   8  9   10    11   12               13              14
-    {"fill", 3.5, 0.0, 0, 0, 0, 0, 3.0, 0, 0, 0.0, 12.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, PRESSURE}, {"fill end", 3.0, 0.0, 0, 0, 1.0, 0.0, 0.0, 0, 0, 0.0, 12.0, EXIT_TYPE_FLOW_UNDER, TRANSITION_FAST, PRESSURE},
-    {"infuse", 1.5, 0.0, 12.0, 0, 0, 0, 0, 0, 0, 0.0, 13.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, PRESSURE},     {"pressure", 10.0, 0.0, 0, 0, 0, 0, 8.0, 0, 0.0, 0.0, 6.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, PRESSURE},
-    {"extract", 0.0, 3.4, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 30.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
-};
-const int lightRoastPhasesCount = sizeof(lightRoastPhases) / sizeof(BrewPhase);
+    return EXIT_TYPE_NONE;
+}
 
-BrewPhase sixBarEspressoPhases[] = {
-    // 0    1   2   3  4  5  6     7   8  9  10   11       12                      13              14
-    {"infuse", 0, 8.0, 0, 0, 0, 0.0, 4.0, 0, 0, 0.0, 20.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},
-    {"rise and hold", 6.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0.0, 16.0, EXIT_TYPE_NONE, TRANSITION_FAST, PRESSURE},
-    {"decline", 4.0, 0.0, 0, 36.0, 0, 0.0, 0.0, 4.0, 0.0, 0.0, 30.0, EXIT_TYPE_PRESSURE_UNDER, TRANSITION_SMOOTH, PRESSURE},
-};
-const int sixBarEspressoPhasesCount = sizeof(sixBarEspressoPhases) / sizeof(BrewPhase);
+TransitionType parseTransition(const char* str) {
+    if (strcmp(str, "smooth") == 0) {
+        return TRANSITION_SMOOTH;
+    }
+    else if (strcmp(str, "fast") == 0) {
+        return TRANSITION_FAST;
+    }
+    else if (strcmp(str, "hold") == 0) {
+        return TRANSITION_HOLD;
+    }
 
-BrewPhase bloomingEspressoPhases[] = {
-    // 0    1   2   3  4  5  6   7   8  9  10   11       12                      13              14
-    {"infuse", 0, 4.0, 0, 0, 0, 0, 1.0, 0, 0, 0, 23.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},
-    {"pause", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 30.0, EXIT_TYPE_NONE, TRANSITION_FAST, FLOW},
-    {"ramp", 0, 2.2, 0, 0, 0, 0, 0, 0, 0, 0, 5.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
-    {"flow", 0, 2.2, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 20.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
-};
-const int bloomingEspressoPhasesCount = sizeof(bloomingEspressoPhases) / sizeof(BrewPhase);
+    return TRANSITION_NONE;
+}
 
-BrewPhase pressurizedBloomPhases[] = {
-    // 0    1   2   3  4  5  6   7   8  9  10   11       12                      13           14
-    {"fill", 0, 8.0, 0, 0, 0, 0, 3.0, 0, 0, 0, 15.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_FAST, FLOW},   {"pressure", 3.0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0, 12.0, EXIT_TYPE_FLOW_UNDER, TRANSITION_FAST, PRESSURE},
-    {"hold", 0.1, 0, 0, 0, 0, 1.0, 0, 0, 0, 0, 6.0, EXIT_TYPE_FLOW_OVER, TRANSITION_FAST, PRESSURE},    {"pressure", 11.0, 0, 0.0, 0, 0, 0.0, 8.8, 0, 0.0, 0.0, 6.0, EXIT_TYPE_PRESSURE_OVER, TRANSITION_SMOOTH, PRESSURE},
-    {"extract", 0.0, 3.5, 0.0, 0, 0, 0, 0, 0, 0.0, 0.0, 60.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
-};
-const int pressurizedBloomPhasesCount = sizeof(pressurizedBloomPhases) / sizeof(BrewPhase);
+PumpMode parsePumpMode(const char* str) {
+    if (strcmp(str, "pressure") == 0) {
+        return PRESSURE;
+    }
+    else if (strcmp(str, "flow") == 0) {
+        return FLOW;
+    }
 
-BrewPhase calibrateFlowPhases[] = {
-    // 0    1   2   3   4  5  6  7  8  9  10   11    12               13              14
-    {"2.0mL/s", 0, 2.0, 0, 0, 0, 0, 0, 0, 0, 0.6, 8.0, EXIT_TYPE_NONE, TRANSITION_FAST, FLOW},
-    {"4.0mL/s", 0, 4.0, 0, 0, 0, 0, 0, 0, 0, 0.6, 8.0, EXIT_TYPE_NONE, TRANSITION_FAST, FLOW},
-    {"6.0mL/s", 0, 6.0, 0, 0, 0, 0, 0, 0, 0, 0.6, 8.0, EXIT_TYPE_NONE, TRANSITION_FAST, FLOW},
-    {"8.0mL/s", 0, 8.0, 0, 0, 0, 0, 0, 0, 0, 0.6, 8.0, EXIT_TYPE_NONE, TRANSITION_FAST, FLOW},
-};
-const int calibrateFlowPhasesCount = sizeof(calibrateFlowPhases) / sizeof(BrewPhase);
+    return POWER;
+}
 
-BrewPhase testRampPhases[] = {
-    // 0             1   2   3   4 5  6  7  8  9  10   11     12               13               14
-    {"increasing flow", 0, 4.0, 0, 0, 0, 0, 0, 0, 0, 0.6, 4.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
-    {"decreasing flow", 0, 1.0, 0, 0, 0, 0, 0, 0, 0, 0.6, 4.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
-    {"increasing flow", 0, 6.0, 0, 0, 0, 0, 0, 0, 0, 0.6, 4.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
-    {"decreasing flow", 0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0.6, 4.0, EXIT_TYPE_NONE, TRANSITION_SMOOTH, FLOW},
-};
-const int testRampPhasesCount = sizeof(testRampPhases) / sizeof(BrewPhase);
+void parseDefaultProfiles() {
+    JsonDocument doc;
+    // StaticJsonDocument<12288> doc;
+    // DynamicJsonDocument doc(32768);
 
-BrewProfile profiles[] = {
-    // displayname, Phases, Count, Temp, Time, Scales, Flow
-    {"springLever", springLeverPhases, springLeverPhasesCount, 90.0, 0, false, true},
-    {"adaptive", adaptivePhases, adaptivePhasesCount, 88.0, 0, true, true},
-    {"londiniumR", londiniumRPhases, londiniumRPhasesCount, 88.0, 0, true, true},
-    {"londiniumV", londiniumVPhases, londiniumVPhasesCount, 88.0, 0, true, true},
-    {"londiniumRPressure", londiniumRPCPhases, londiniumRPCPhasesCount, 88.0, 0, true, false},
-    {"londiniumVPressure", londiniumVPCPhases, londiniumVPCPhasesCount, 88.0, 0, true, false},
-    {"lightRoast", lightRoastPhases, lightRoastPhasesCount, 92.0, 0, false, true},
-    {"sixBarEspresso", sixBarEspressoPhases, sixBarEspressoPhasesCount, 90.0, 0, true, true},
-    {"bloomingEspresso", bloomingEspressoPhases, bloomingEspressoPhasesCount, 92.0, 0, false, true},
-    {"pressurizedBloom", pressurizedBloomPhases, pressurizedBloomPhasesCount, 93.0, 0, false, true},
-    {"calibrateFlow", calibrateFlowPhases, calibrateFlowPhasesCount, 90.0, 0, false, true},
-    {"testRampFlow", testRampPhases, testRampPhasesCount, 90.0, 0, false, true},
-};
+    DeserializationError error = deserializeJson(doc, defaultProfilesJson);
+    if (error) {
+        Serial.print(F("JSON parsing failed: "));
+        Serial.println(error.c_str());
+        return;
+    }
 
-const int profilesCount = sizeof(profiles) / sizeof(BrewProfile);
+    for (JsonObject profileJson : doc.as<JsonArray>()) {
+        // bool requiresScales = profileJson["scales"] | false;
+        // bool requiresFlow = profileJson["flow"] | false;
 
-// these profiles could be written like this for better visibility
+        // if ((requiresScales && !config.get<bool>("hardware.sensors.scale.enabled")) || (requiresFlow && config.get<bool>("dimmer.type"))) {
+        //     continue;
+        // }
 
-/*BrewPhase londiniumPhases[] = {
-    {
-        .name = "pause",
-        .pressure = 0,
-        .flow = 0,
-        .volume = 0,
-        .weight = 0,
-        .exit_flow_under = 0,
-        .exit_flow_over = 0,
-        .exit_pressure_over = 0,
-        .exit_pressure_under = 0,
-        .max_flow_or_pressure = 0,
-        .max_flow_or_pressure_range = 0,
-        .seconds = 1.0,
-        .exit_type = EXIT_TYPE_NONE,
-        .transition = TRANSITION_FAST,
-        .pump = FLOW,
-    },
-    {
-        .name = "fill",
-        .pressure = 0,
-        .flow = 8.0,
-        .volume = 0,
-        .weight = 5.0,
-        .exit_flow_under = 0,
-        .exit_flow_over = 0.0,
-        .exit_pressure_over = 3.0,
-        .exit_pressure_under = 0,
-        .max_flow_or_pressure = 0,
-        .max_flow_or_pressure_range = 0.0,
-        .seconds = 20.0,
-        .exit_type = EXIT_TYPE_PRESSURE_OVER,
-        .transition = TRANSITION_FAST,
-        .pump = FLOW,
-    },*/
+        BrewProfile profile;
+        profile.name = strdup(profileJson["name"]); // optional: use strdup to persist
+        profile.shortname = profileJson["shortname"];
+        profile.temperature = profileJson["temperature"];
+        profile.scales = profileJson["scales"];
+        profile.flow = profileJson["flow"];
+
+        JsonArray phasesJson = profileJson["phases"];
+        profile.phaseCount = phasesJson.size();
+        profile.phases = new BrewPhase[profile.phaseCount]; // allocate dynamically
+
+        int i = 0;
+
+        for (JsonObject phaseJson : phasesJson) {
+            BrewPhase& p = profile.phases[i++];
+            memset(&p, 0, sizeof(BrewPhase)); // zero everything by default
+
+            p.name = strdup(phaseJson["name"]);
+
+            // Optional fields
+            p.pressure = phaseJson["pressure"] | 0.0;
+            p.flow = phaseJson["flow"] | 0.0;
+            p.volume = phaseJson["volume"] | 0.0;
+            p.weight = phaseJson["weight"] | 0.0;
+            p.exit_flow_under = phaseJson["exit_flow_under"] | 0.0;
+            p.exit_flow_over = phaseJson["exit_flow_over"] | 0.0;
+            p.exit_pressure_over = phaseJson["exit_pressure_over"] | 0.0;
+            p.exit_pressure_under = phaseJson["exit_pressure_under"] | 0.0;
+            p.max_secondary = phaseJson["max_secondary"] | 0.0;
+            p.max_secondary_range = phaseJson["max_secondary_range"] | 0.0;
+            p.seconds = phaseJson["seconds"] | 0.0;
+
+            // Enums from string
+            const char* exitTypeStr = phaseJson["exit_type"] | "none";
+            const char* transitionStr = phaseJson["transition"] | "fast";
+            const char* pumpStr = phaseJson["pump"] | "pressure";
+
+            p.exit_type = parseExitType(exitTypeStr);
+            p.transition = parseTransition(transitionStr);
+            p.pump = parsePumpMode(pumpStr);
+        }
+
+        loadedProfiles.push_back(profile);
+    }
+}
+
+bool loadProfile(const char* json, BrewPhase* phases, size_t maxPhases, size_t& outCount) {
+    // StaticJsonDocument<2048> doc;
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, json);
+    if (err) {
+        return false;
+    }
+
+    JsonArray arr = doc.as<JsonArray>();
+    size_t count = 0;
+
+    for (JsonObject obj : arr) {
+        if (count >= maxPhases) {
+            break;
+        }
+
+        BrewPhase& p = phases[count];
+        p = {};
+        p.name = obj["name"] | "";
+        p.pressure = obj["pressure"] | 0.0;
+        p.flow = obj["flow"] | 0.0;
+        p.volume = obj["volume"] | 0.0;
+        p.weight = obj["weight"] | 0.0;
+        p.exit_flow_under = obj["exit_flow_under"] | 0.0;
+        p.exit_flow_over = obj["exit_flow_over"] | 0.0;
+        p.exit_pressure_over = obj["exit_pressure_over"] | 0.0;
+        p.exit_pressure_under = obj["exit_pressure_under"] | 0.0;
+        p.max_secondary = obj["max_secondary"] | 0.0;
+        p.max_secondary_range = obj["max_secondary_range"] | 0.0;
+        p.seconds = obj["seconds"] | 0.0;
+        p.exit_type = parseExitType(obj["exit_type"] | "none");
+        p.transition = parseTransition(obj["transition"] | "fast");
+        p.pump = parsePump(obj["pump"] | "pressure");
+
+        count++;
+    }
+
+    outCount = count;
+    return true;
+}
+
+void saveProfile(BrewPhase* phases, size_t count, Stream& out) {
+    // StaticJsonDocument<2048> doc;
+    JsonDocument doc;
+    JsonArray arr = doc.to<JsonArray>();
+
+    for (size_t i = 0; i < count; ++i) {
+        BrewPhase& p = phases[i];
+        JsonObject o = arr.add<JsonObject>(); // createNestedObject();
+
+        o["name"] = p.name;
+        if (p.pressure != 0.0) o["pressure"] = p.pressure;
+        if (p.flow != 0.0) o["flow"] = p.flow;
+        if (p.volume != 0.0) o["volume"] = p.volume;
+        if (p.weight != 0.0) o["weight"] = p.weight;
+        if (p.exit_flow_under != 0.0) o["exit_flow_under"] = p.exit_flow_under;
+        if (p.exit_flow_over != 0.0) o["exit_flow_over"] = p.exit_flow_over;
+        if (p.exit_pressure_under != 0.0) o["exit_pressure_under"] = p.exit_pressure_under;
+        if (p.exit_pressure_over != 0.0) o["exit_pressure_over"] = p.exit_pressure_over;
+        if (p.max_secondary != 0.0) o["max_secondary"] = p.max_secondary;
+        if (p.max_secondary_range != 0.0) o["max_secondary_range"] = p.max_secondary_range;
+        if (p.seconds != 0.0) o["seconds"] = p.seconds;
+        o["exit_type"] = exitTypeStrs[p.exit_type];
+        o["transition"] = transitionStrs[p.transition];
+        o["pump"] = pumpModeStrs[p.pump];
+    }
+
+    serializeJsonPretty(doc, out);
+}

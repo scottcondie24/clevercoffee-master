@@ -14,6 +14,7 @@
 #include <WiFi.h>
 
 #include <ArduinoJson.h>
+#include <AsyncJson.h>
 #include <ESPAsyncWebServer.h>
 
 #include "LittleFS.h"
@@ -103,7 +104,7 @@ inline String getValue(const String& varName) {
     }
 }
 
-inline void paramToJson(const String& name, const std::shared_ptr<Parameter>& param, JsonDocument& doc) {
+inline void paramToJson(const String& name, const std::shared_ptr<Parameter>& param, JsonVariant doc) {
     doc["type"] = param->getType();
     doc["name"] = name;
     doc["displayName"] = param->getDisplayName();
@@ -280,14 +281,20 @@ inline void serverSetup() {
             const auto& registry = ParameterRegistry::getInstance();
             const auto& parameters = registry.getParameters();
 
-            StaticJsonDocument<8192> doc;
-            auto array = doc.to<JsonArray>();
+            // StaticJsonDocument<32768> doc;
+            // DynamicJsonDocument doc(32768);
+            // auto array = doc.to<JsonArray>();
 
             // Check for filter parameter
             String filterType = "";
             if (request->hasParam("filter")) {
                 filterType = request->getParam("filter")->value();
             }
+
+            AsyncJsonResponse* response = new AsyncJsonResponse(false); // false = no pretty-print
+            JsonArray array = response->getRoot().to<JsonArray>();
+
+            int count = 0;
 
             // Get parameters based on filter
             for (const auto& param : parameters) {
@@ -304,31 +311,66 @@ inline void serverSetup() {
                 else if (filterType == "other") {
                     includeParam = param->getSection() == 11;
                 }
-                else {
+                else if (filterType == "all") {
                     includeParam = true;
+                    // includeParam = param->getSection() >= 1 && param->getSection() <= 16;
+                }
+                else {
+                    includeParam = param->getSection() == 0 || param->getSection() == 1 || param->getSection() == 11;
                 }
 
                 if (includeParam) {
-                    StaticJsonDocument<256> paramDoc;
-                    paramToJson(param->getId(), param, paramDoc);
+                    // StaticJsonDocument<256> paramDoc;
+                    // paramDoc.clear();
+                    // paramToJson(param->getId(), param, paramDoc);
 
-                    if (const bool success = array.add(paramDoc); !success) {
-                        LOGF(ERROR, "Failed to add parameter %s to JSON array", param->getId());
-                    }
+                    // if (const bool success = array.add(paramDoc); !success) {
+                    //     LOGF(ERROR, "Failed to add parameter %s to JSON array", param->getId());
+                    // }
+
+                    JsonObject paramObj = array.add<JsonObject>(); // createNestedObject();
+                    paramToJson(param->getId(), param, paramObj);
+                    count++;
                 }
             }
 
-            if (doc.overflowed()) {
-                LOG(ERROR, "/parameters JSON overflowed - increase StaticJsonDocument size");
-                request->send(500, "text/plain", "Internal error: JSON too large");
-                return;
-            }
+            // if (doc.overflowed()) {
+            //     LOG(ERROR, "/parameters JSON overflowed - increase StaticJsonDocument size");
+            //     request->send(500, "text/plain", "Internal error: JSON too large");
+            //     return;
+            // }
 
-            size_t len = measureJson(doc);
-            String payload;
-            payload.reserve(len + 16);
-            serializeJson(doc, payload);
-            request->send(200, "application/json", payload);
+            // size_t len = measureJson(doc);
+            // String payload;
+            // payload.reserve(len + 16);
+            // LOGF(DEBUG, "/parameters returning %d parameters", array.size());
+
+            // size_t bytes = serializeJson(doc, payload);
+            // LOGF(DEBUG, "Serialized %u bytes to JSON", bytes);
+
+            // if (payload.isEmpty()) {
+            //     payload = "[]";
+            //     LOG(DEBUG, "Payload is empty");
+            // }
+            // if (bytes == 0 || payload.length() != bytes) {
+            //     LOG(ERROR, "Serialization failed or truncated");
+            // }
+            // LOGF(DEBUG, "Payload starts with: %.200s", payload.c_str());
+            // LOGF(DEBUG, "Payload length: %d", payload.length());
+            // request->send(200, "application/json", payload);
+
+            /*AsyncJsonResponse* response = new AsyncJsonResponse(false, 8192); // false = no pretty-print, adjust size if needed
+            serializeJson(doc, response->getRoot());
+            response->setLength();  // calculate Content-Length
+            request->send(response);*/
+
+            /*AsyncResponseStream* response = request->beginResponseStream("application/json");
+            serializeJson(doc, *response);
+            request->send(response);*/
+
+            LOGF(DEBUG, "/parameters returning %d parameters", count);
+            response->setLength();         // calculate Content-Length
+            request->send(response);
         }
         else if (request->method() == 2) { // HTTP_POST
             auto& registry = ParameterRegistry::getInstance();
@@ -417,7 +459,7 @@ inline void serverSetup() {
         AsyncResponseStream* response = request->beginResponseStream("application/json");
         response->addHeader("Connection", "close"); // Force connection close
 
-        StaticJsonDocument<8192> doc;
+        JsonDocument doc;
 
         // for each value in mem history array, add json array element
         auto currentTemps = doc["currentTemps"].to<JsonArray>();
@@ -623,7 +665,7 @@ inline void sendTempEvent(const double currentTemp, const double targetTemp, con
 }
 
 void sendBrewEvent(float inputPressure, float setPressure, float pumpFlowRate, float setPumpFlowRate, float currBrewWeight, int dimmerPower) {
-    StaticJsonDocument<96> doc;
+    JsonDocument doc;
 
     doc["inputPressure"] = inputPressure;
     doc["setPressure"] = setPressure;
