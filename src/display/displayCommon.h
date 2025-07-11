@@ -549,6 +549,13 @@ inline void displayWrappedMessage(const String& message, int x, int startY, int 
     if (clearSend) {
         u8g2->sendBuffer();
     }
+
+    if (y < displayHeight + lineHeight) {
+        blockScroll = true;
+    }
+    else {
+        blockScroll = false;
+    }
 }
 
 /**
@@ -698,6 +705,19 @@ inline bool displayMachineState() {
         return true;
     }
 
+    if (displayProfileDescription) {
+        String msg = String(currentProfile->description) + "\n";
+
+        for (int i = 0; i < currentProfile->phaseCount; i++) {
+            msg += "Phase " + String(i + 1) + ": ";
+            msg += String(currentProfile->phases[i].name) + "\n"; // first phase name
+            msg += String(currentProfile->phases[i].description) + "\n\n";
+        }
+
+        displayWrappedMessage(msg, 0, descriptionScrollY);
+        return true;
+    }
+
     // Show the heating logo when we are in regular PID mode and more than 5degC below the set point
     if (featureHeatingLogo && (machineState == kPidNormal || machineState == kSteam) && setpoint - temperature > 5.) {
         // For status info
@@ -843,4 +863,107 @@ inline bool displayMachineState() {
     }
 
     return false;
+}
+
+void displayScrollingSubstring(int x, int y, int displayWidth, const char* text, bool bounce) {
+    static int offset = 0;
+    static int direction = 1;
+    static unsigned long lastUpdate = 0;
+    static unsigned long interval = 100;
+    static const char* lastText = nullptr;
+
+    if (text == nullptr) return;
+
+    // Reset if text has changed
+    if (lastText != text) {
+        offset = 0;
+        direction = 1;
+        lastText = text;
+        interval = 500;
+        lastUpdate = millis();
+    }
+    else if (offset > 0) {
+        interval = 100;
+    }
+
+    int textLen = strlen(text);
+    int fullTextWidth = u8g2->getStrWidth(text);
+
+    // limit display width
+    if ((displayWidth == 0) || (displayWidth + x > SCREEN_WIDTH)) {
+        displayWidth = SCREEN_WIDTH - x;
+    }
+
+    // No scrolling needed
+    if (fullTextWidth <= displayWidth) {
+        u8g2->drawStr(x, y, text);
+        return;
+    }
+
+    // Scroll logic
+    if (millis() - lastUpdate > interval) {
+        lastUpdate = millis();
+        if (bounce) {
+            offset += direction;
+            if (offset < 0 || u8g2->getStrWidth(&text[offset]) < displayWidth) {
+                direction = -direction;
+                offset += direction;
+            }
+        }
+        else {
+            offset++;
+            if (offset >= u8g2->getStrWidth(&text[offset])) {
+                offset = 0;
+            }
+        }
+    }
+
+    // Determine how many characters fit
+    int visibleWidth = 0;
+    int end = offset;
+    while (end < textLen && visibleWidth < displayWidth) {
+        char buf[2] = {text[end], '\0'};
+        visibleWidth += u8g2->getStrWidth(buf);
+        if (visibleWidth > displayWidth) break;
+        end++;
+    }
+
+    // Copy visible substring
+    char visible[64] = {0};
+    strncpy(visible, &text[offset], end - offset);
+    visible[end - offset] = '\0';
+
+    u8g2->drawStr(x, y, visible);
+}
+
+void drawEncoderControlLabel() {
+    u8g2->print(menuLevel == 1 ? ">" : " ");
+    u8g2->print(dimmerModes[config.get<int>("dimmer.mode")]);
+}
+
+void drawEncoderControlValue() {
+    u8g2->print(menuLevel == 2 ? ">" : " ");
+    switch (config.get<int>("dimmer.mode")) {
+        case POWER:
+            u8g2->print(config.get<float>("dimmer.setpoint.power"), 0);
+            break;
+
+        case PRESSURE:
+            u8g2->print(config.get<float>("dimmer.setpoint.pressure"), 1);
+            break;
+
+        case FLOW:
+            u8g2->print(config.get<float>("dimmer.setpoint.flow"), 1);
+            break;
+
+        case PROFILE:
+            {
+                const char* name = (machineState == kBrew) ? phaseName : profileName;
+                displayScrollingSubstring(83, 55, 38, name, false);
+                break;
+            }
+
+        default:
+            break;
+    }
 }
