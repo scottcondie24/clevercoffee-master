@@ -107,10 +107,14 @@ inline void printScreen() {
         int labelWidth = u8g2->getUTF8Width(langstring_pressure);
         u8g2->setCursor(32 + labelWidth, 46);
         u8g2->print(inputPressure, 1);
-    }
 
-    // Show heater output in %
-    displayProgressbar(pidOutput / 10, 30, 60, 98);
+        // Show heater output in %
+        displayProgressbar(pidOutput / 10, 30, 60, 98);
+    }
+    else {
+        // Show heater output in %
+        displayProgressbar(pidOutput / 10, 30, 60, 98);
+    }
 
     displayBufferReady = true;
 }
