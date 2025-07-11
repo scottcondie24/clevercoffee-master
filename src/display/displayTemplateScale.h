@@ -42,6 +42,7 @@ inline void printScreen() {
     u8g2->print(setpoint, 1);
     u8g2->print(static_cast<char>(176));
     u8g2->print("C");
+    u8g2->print(menuLevel == 1 ? "<" : " ");
 
     if (scale) {
         // Show current weight if scale has no error
@@ -87,10 +88,14 @@ inline void printScreen() {
         int labelWidth = u8g2->getUTF8Width(langstring_pressure);
         u8g2->setCursor(32 + labelWidth, 46);
         u8g2->print(inputPressure, 1);
-    }
 
-    // Show heater output in %
-    displayProgressbar(pidOutput / 10, 30, 60, 98);
+        // Show heater output in %
+        displayProgressbar(pidOutput / 10, 30, 60, 98);
+    }
+    else {
+        // Show heater output in %
+        displayProgressbar(pidOutput / 10, 30, 60, 98);
+    }
 
     displayBufferReady = true;
 }
