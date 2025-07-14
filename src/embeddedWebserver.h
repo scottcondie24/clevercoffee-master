@@ -305,19 +305,19 @@ inline void serverSetup() {
                 bool includeParam = false;
 
                 if (filterType == "hardware") {
-                    includeParam = param->getSection() >= 11 && param->getSection() <= 15;
+                    includeParam = param->getSection() >= 12 && param->getSection() <= 16;
                 }
                 else if (filterType == "behavior") {
-                    includeParam = param->getSection() >= 0 && param->getSection() <= 9;
+                    includeParam = param->getSection() >= 0 && param->getSection() <= 10;
                 }
                 else if (filterType == "other") {
-                    includeParam = param->getSection() == 10;
+                    includeParam = param->getSection() == 11;
                 }
                 else if (filterType == "all") {
                     includeParam = true;
                 }
                 else {
-                    includeParam = param->getSection() == 0 || param->getSection() == 1 || param->getSection() == 10;
+                    includeParam = param->getSection() == 0 || param->getSection() == 1 || param->getSection() == 11;
                 }
 
                 if (includeParam) {
@@ -477,6 +477,8 @@ inline void serverSetup() {
         request->send(response);
     });
 
+    server.on("/graph", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(LittleFS, "/graph.html", "text/html"); });
+
     server.on("/wifireset", HTTP_POST, [](AsyncWebServerRequest* request) {
         if (!authenticate(request)) {
             return request->requestAuthentication();
@@ -619,6 +621,8 @@ inline void serverSetup() {
         }
 
         client->send("hello", nullptr, millis(), 10000);
+
+        updateMetadata = true;
     });
 
     server.addHandler(&events);
@@ -671,4 +675,47 @@ inline void sendTempEvent(const double currentTemp, const double targetTemp, con
         events.send("ping", nullptr, millis());
         events.send(getTempString().c_str(), "new_temps", millis());
     }
+}
+
+void sendBrewEvent(float time, float inputPressure, float setPressure, float pumpFlowRate, float setPumpFlowRate, float currBrewWeight, int dimmerPower) {
+    JsonDocument doc;
+
+    doc["currBrewTime"] = time;
+    doc["inputPressure"] = inputPressure;
+    doc["setPressure"] = setPressure;
+    doc["pumpFlowRate"] = pumpFlowRate;
+    doc["setPumpFlowRate"] = setPumpFlowRate;
+    doc["currBrewWeight"] = currBrewWeight;
+    doc["dimmerPower"] = dimmerPower;
+
+    String jsonBrew;
+    serializeJson(doc, jsonBrew);
+
+    events.send(jsonBrew.c_str(), "brew_event", millis());
+    // LOGF(DEBUG, "%s", jsonTemps.c_str());
+}
+
+void sendBrewMetadata(String profile, String phase, String profileDesc, String phaseDesc, String control, String autoStop) {
+    JsonDocument doc;
+
+    doc["profile"] = profile;
+    doc["phase"] = phase;
+    doc["profileDesc"] = profileDesc;
+    doc["phaseDesc"] = phaseDesc;
+    doc["control"] = control;
+    doc["autoStop"] = autoStop;
+
+    String jsonBrewMeta;
+    serializeJson(doc, jsonBrewMeta);
+
+    events.send(jsonBrewMeta.c_str(), "brew_meta", millis());
+    // LOGF(DEBUG, "%s", jsonTemps.c_str());
+}
+
+void startBrewEvent() {
+    events.send("start", "brew_state", millis());
+}
+
+void stopBrewEvent() {
+    events.send("stop", "brew_state", millis());
 }

@@ -349,6 +349,7 @@ inline int writeSysParamsToMQTT(const bool continueOnError = true) {
 
             if (mqttLastSent[mqttTopic].compare(data) != 0) {
                 if (!mqtt_publish(mqttTopic, data, true)) {
+                    // if (!mqtt_publish(mqttTopic, value.c_str(), true)) {
                     errorState = mqtt.state();
 
                     if (!continueOnError) {
