@@ -1,4 +1,9 @@
 // load-libs.js
+window.__libsCallback = null;
+window.onLibsReady = function(cb) {
+  window.__libsCallback = cb;
+};
+
 
 function loadLib(localUrl, cdnUrl, type="js", globalAssign=null) {
   return new Promise((resolve, reject) => {
@@ -89,6 +94,7 @@ loadLib("/css/fontawesome-6.2.1.min.css", "https://cdnjs.cloudflare.com/ajax/lib
 })
 .then(() => {
   console.log("App loaded");
+  if (window.__libsCallback) window.__libsCallback();
 })
 .catch(err => {
   console.error("Error loading JS libraries:", err);
