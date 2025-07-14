@@ -42,6 +42,25 @@ extern double temperature;
 extern bool scaleTareOn;
 extern bool scaleCalibrationOn;
 extern int logLevel;
+extern int dimmerType;
+extern int dimmerMode;
+extern int selectedProfile;
+extern float pumpPowerSetpoint;
+extern float pumpPressureSetpoint;
+extern float pumpFlowSetpoint;
+extern float psmPressureKp;
+extern float psmPressureKi;
+extern float psmPressureKd;
+extern float psmFlowKp;
+extern float psmFlowKi;
+extern float psmFlowKd;
+extern float phasePressureKp;
+extern float phasePressureKi;
+extern float phasePressureKd;
+extern float phaseFlowKp;
+extern float phaseFlowKi;
+extern float phaseFlowKd;
+extern float pumpIntegratorMax;
 extern const char sysVersion[64];
 extern bool includeDisplayInLogs;
 extern bool timingDebugActive;
@@ -49,6 +68,10 @@ extern bool timingDebugActive;
 const char* switchTypes[2] = {"Momentary", "Toggle"};
 const char* switchModes[2] = {"Normally Open", "Normally Closed"};
 const char* relayTriggerTypes[2] = {"Low Trigger", "High Trigger"};
+const char* dimmerTypes[2] = {"Pulse Skip Modulation", "Phase"};
+const char* dimmerModes[4] = {"Power", "Pressure", "Flow", "Profile"};
+const char* profileSelector[12] = {"Spring Lever",      "Adaptive",          "Londinium R24",  "Londinium Vectis", "Londinium R24 Pressure Only", "Londinium Vectis Pressure Only", "Light Roast", "Six Bar Espresso",
+                                   "Blooming Espresso", "Pressurized Bloom", "Calibrate Flow", "Test Ramp Flow"};
 
 void ParameterRegistry::initialize(Config& config) {
     if (_ready) {
@@ -448,6 +471,261 @@ void ParameterRegistry::initialize(Config& config) {
         );
     }
 
+    addBoolConfigParam(
+        "dimmer.enabled",
+        "Enable Pump Dimmer",
+        sPumpPidSection,
+        1401,
+        nullptr,
+        "Enable dimmer control of pump, requires hardware dimmer"
+    );
+
+    if (config.get<bool>("dimmer.enabled")) {
+        addEnumConfigParam(
+            "dimmer.type",
+            "Dimmer Control Type",
+            sPumpPidSection,
+            1402,
+            &dimmerType,
+            dimmerTypes,
+            2,
+            "Software method of varying of dimmer. Pulse Skip has more accurate flow, while Phase is smoother but less accurate flow"
+        );
+
+        addEnumConfigParam(
+            "dimmer.mode",
+            "Dimmer Control Method",
+            sPumpPidSection,
+            1411,
+            &dimmerMode,
+            dimmerModes,
+            4,
+            "Control setpoint the dimmer targets"
+        );
+
+        addEnumConfigParam(
+            "dimmer.profile",
+            "Dimmer Profile Selection",
+            sPumpPidSection,
+            1412,
+            &selectedProfile,
+            profileSelector,
+            12,
+            "Profile to control the pump during brew"
+        );
+
+        addNumericConfigParam<float>(
+            "dimmer.setpoint.power",
+            "Pump Power Setpoint",
+            kFloat,
+            sPumpPidSection,
+            1421,
+            &pumpPowerSetpoint,
+            PUMP_POWER_SETPOINT_MIN,
+            PUMP_POWER_SETPOINT_MAX,
+            "Percent of output power the pump will run at"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.setpoint.pressure",
+            "Pump Pressure Setpoint",
+            kFloat,
+            sPumpPidSection,
+            1422,
+            &pumpPressureSetpoint,
+            PUMP_PRESSURE_SETPOINT_MIN,
+            PUMP_PRESSURE_SETPOINT_MAX,
+            "Pressure the PID controller will target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.setpoint.flow",
+            "Pump Flow Setpoint",
+            kFloat,
+            sPumpPidSection,
+            1423,
+            &pumpFlowSetpoint,
+            PUMP_FLOW_SETPOINT_MIN,
+            PUMP_FLOW_SETPOINT_MAX,
+            "Flow rate the PID controller will target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.psm.pressure.kp",
+            "PSM Pressure Kp",
+            kFloat,
+            sPumpPidSection,
+            1431,
+            &psmPressureKp,
+            PUMP_KP_MIN,
+            PUMP_KP_MAX,
+            "Proportional gain for Pulse Skip control with pressure target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.psm.pressure.ki",
+            "PSM Pressure Ki",
+            kFloat,
+            sPumpPidSection,
+            1432,
+            &psmPressureKi,
+            PUMP_KI_MIN,
+            PUMP_KI_MAX,
+            "Integral gain for Pulse Skip control with pressure target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.psm.pressure.kd",
+            "PSM Pressure Kd",
+            kFloat,
+            sPumpPidSection,
+            1433,
+            &psmPressureKd,
+            PUMP_KD_MIN,
+            PUMP_KD_MAX,
+            "Derivative gain for Pulse Skip control with pressure target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.psm.flow.kp",
+            "PSM Flow Kp",
+            kFloat,
+            sPumpPidSection,
+            1441,
+            &psmFlowKp,
+            PUMP_KP_MIN,
+            PUMP_KP_MAX,
+            "Proportional gain for Pulse Skip control with flow target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.psm.flow.ki",
+            "PSM Flow Ki",
+            kFloat,
+            sPumpPidSection,
+            1442,
+            &psmFlowKi,
+            PUMP_KI_MIN,
+            PUMP_KI_MAX,
+            "Integral gain for Pulse Skip control with flow target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.psm.flow.kd",
+            "PSM Flow Kd",
+            kFloat,
+            sPumpPidSection,
+            1443,
+            &psmFlowKd,
+            PUMP_KD_MIN,
+            PUMP_KD_MAX,
+            "Derivative gain for Pulse Skip control with flow target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.phase.pressure.kp",
+            "Phase Pressure Kp",
+            kFloat,
+            sPumpPidSection,
+            1451,
+            &phasePressureKp,
+            PUMP_KP_MIN,
+            PUMP_KP_MAX,
+            "Proportional gain for Phase control with pressure target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.phase.pressure.ki",
+            "Phase Pressure Ki",
+            kFloat,
+            sPumpPidSection,
+            1452,
+            &phasePressureKi,
+            PUMP_KI_MIN,
+            PUMP_KI_MAX,
+            "Integral gain for Phase control with pressure target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.phase.pressure.kd",
+            "Phase Pressure Kd",
+            kFloat,
+            sPumpPidSection,
+            1453,
+            &phasePressureKd,
+            PUMP_KD_MIN,
+            PUMP_KD_MAX,
+            "Derivative gain for Phase control with pressure target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.phase.flow.kp",
+            "Phase Flow Kp",
+            kFloat,
+            sPumpPidSection,
+            1461,
+            &phaseFlowKp,
+            PUMP_KP_MIN,
+            PUMP_KP_MAX,
+            "Proportional gain for Phase control with flow target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.phase.flow.ki",
+            "Phase Flow Ki",
+            kFloat,
+            sPumpPidSection,
+            1462,
+            &phaseFlowKi,
+            PUMP_KI_MIN,
+            PUMP_KI_MAX,
+            "Integral gain for Phase control with flow target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.phase.flow.kd",
+            "Phase Flow Kd",
+            kFloat,
+            sPumpPidSection,
+            1463,
+            &phaseFlowKd,
+            PUMP_KD_MIN,
+            PUMP_KD_MAX,
+            "Derivative gain for Phase control with flow target"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.i_max",
+            "Pump PID Integrator Max",
+            kFloat,
+            sPumpPidSection,
+            1471,
+            &pumpIntegratorMax,
+            PUMP_I_MAX_MIN,
+            PUMP_I_MAX_MAX,
+            "Limit on the integration accumulator"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.calibration.flow_rate1",
+            "Flow rate calibration no pressure",
+            kFloat,
+            sPumpPidSection,
+            1481,
+            nullptr,
+            PUMP_CALIBRATION_FLOW_MIN,
+            PUMP_CALIBRATION_FLOW_MAX,
+            "Water flow in 30s from group head, use brew or flush function"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.calibration.flow_rate2",
+            "Flow rate calibration OPV pressure",
+            kFloat,
+            sPumpPidSection,
+            1482,
+            nullptr,
+            PUMP_CALIBRATION_FLOW_MIN,
+            PUMP_CALIBRATION_FLOW_MAX,
+            "Water flow in 30s from return line, use water switch function"
+        );
+        addNumericConfigParam<float>(
+            "dimmer.calibration.opv_pressure",
+            "OPV Pressure",
+            kFloat,
+            sPumpPidSection,
+            1483,
+            nullptr,
+            PUMP_PRESSURE_SETPOINT_MIN, 
+            PUMP_PRESSURE_SETPOINT_MAX,
+            "Pressure sensor value when water switch is active and water is returning to the tank"
+        );
+    }
+
+
     // Other Section (special parameters, e.g. runtime-only toggles)
     addParam(std::make_shared<Parameter>(
         "STEAM_MODE",
@@ -798,6 +1076,16 @@ void ParameterRegistry::initialize(Config& config) {
         1303,
         &includeDisplayInLogs,
         "Enable or disable showing sendBuffer loops in debug logs",
+        [&config] { return config.get<int>("system.log_level") == static_cast<int>(Logger::Level::DEBUG); }
+    );
+        
+    addBoolConfigParam(
+        "system.show_brewdata.enabled",
+        "Enable brew data logs",
+        sSystemSection,
+        1304,
+        nullptr,
+        "Enable arrays of brew data in debug logs",
         [&config] { return config.get<int>("system.log_level") == static_cast<int>(Logger::Level::DEBUG); }
     );
 

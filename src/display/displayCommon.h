@@ -844,3 +844,97 @@ inline bool displayMachineState() {
 
     return false;
 }
+
+void displayScrollingSubstring(int x, int y, int displayWidth, const char* text, bool bounce) {
+    static int offset = 0;
+    static int direction = 1;
+    static unsigned long lastUpdate = 0;
+    static unsigned long interval = 100;
+    static const char* lastText = nullptr;
+
+    if (text == nullptr) return;
+
+    // Reset if text has changed
+    if (lastText != text) {
+        offset = 0;
+        direction = 1;
+        lastText = text;
+        interval = 500;
+        lastUpdate = millis();
+    }
+    else if (offset > 0) {
+        interval = 100;
+    }
+
+    int textLen = strlen(text);
+    int fullTextWidth = u8g2->getStrWidth(text);
+
+    // limit display width
+    if ((displayWidth == 0) || (displayWidth + x > SCREEN_WIDTH)) {
+        displayWidth = SCREEN_WIDTH - x;
+    }
+
+    // No scrolling needed
+    if (fullTextWidth <= displayWidth) {
+        u8g2->drawStr(x, y, text);
+        return;
+    }
+
+    // Scroll logic
+    if (millis() - lastUpdate > interval) {
+        lastUpdate = millis();
+        if (bounce) {
+            offset += direction;
+            if (offset < 0 || u8g2->getStrWidth(&text[offset]) < displayWidth) {
+                direction = -direction;
+                offset += direction;
+            }
+        }
+        else {
+            offset++;
+            if (offset >= u8g2->getStrWidth(&text[offset])) {
+                offset = 0;
+            }
+        }
+    }
+
+    // Determine how many characters fit
+    int visibleWidth = 0;
+    int end = offset;
+    while (end < textLen && visibleWidth < displayWidth) {
+        char buf[2] = {text[end], '\0'};
+        visibleWidth += u8g2->getStrWidth(buf);
+        if (visibleWidth > displayWidth) break;
+        end++;
+    }
+
+    // Copy visible substring
+    char visible[64] = {0};
+    strncpy(visible, &text[offset], end - offset);
+    visible[end - offset] = '\0';
+
+    u8g2->drawStr(x, y, visible);
+}
+
+void drawEncoderControlLabel() {
+    // u8g2->print(menuLevel == 1 ? ">" : " ");
+    u8g2->print(" ");
+    u8g2->print(dimmerModeName[dimmerMode]);
+}
+
+void drawEncoderControlValue() {
+    // u8g2->print(menuLevel == 2 ? ">" : " ");
+    if (dimmerMode == POWER) {
+        u8g2->print(pumpPowerSetpoint, 0);
+    }
+    else if (dimmerMode == PRESSURE) {
+        u8g2->print(pumpPressureSetpoint, 1);
+    }
+    else if (dimmerMode == FLOW) {
+        u8g2->print(pumpFlowSetpoint, 1);
+    }
+    else if (dimmerMode == PROFILE) {
+        const char* name = (machineState == kBrew) ? phaseName : profileName;
+        displayScrollingSubstring(83, 55, 38, name, false);
+    }
+}
