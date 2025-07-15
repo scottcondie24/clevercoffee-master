@@ -1,218 +1,206 @@
 %HEADER%
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Live Telemetry</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f8f8f8;
-      color: #333;
-    }
-
-    main {
-      padding: 1rem;
-    }
-
-    canvas {
-      width: 100%;
-      max-width: 100%;
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-  </style>
-</head>
-<body>
-
-  <main>
-    <canvas id="telemetryChart" height="300"></canvas>
-  </main>
+<main class="container py-3">
+  <canvas id="telemetryChart" height="300" style="width:100%;"></canvas>
+</main>
 
 <script>
-const inputPressureData = [{ x: 0, y: 0 }];
-const setPressureData = [{ x: 0, y: 0 }];
-const pumpFlowRateData = [{ x: 0, y: 0 }];
-const setPumpFlowRateData = [{ x: 0, y: 0 }];
-const currBrewWeightData = [{ x: 0, y: 0 }];
-const dimmerPowerData = [{ x: 0, y: 0 }];
+function loadChartJS(callback) {
+  if (window.Chart) {
+    callback();
+    return;
+  }
 
-const ctx = document.getElementById("telemetryChart").getContext("2d");
+  const script = document.createElement("script");
+  script.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
+  script.onload = callback;
+  document.head.appendChild(script);
+}
 
-const chart = new Chart(ctx, {
-  type: "line",
-  data: {
-    datasets: [
-      {
-        label: "Input Pressure (Bar)",
-        data: inputPressureData,
-        borderColor: "red",
-        backgroundColor: "rgba(255, 0, 0, 0.1)",
-        yAxisID: "y",
-        pointRadius: 0,
-        tension: 0.3,
+document.addEventListener("DOMContentLoaded", () => {
+  loadChartJS(() => {
+    const inputPressureData = [{ x: 0, y: 0 }];
+    const setPressureData = [{ x: 0, y: 0 }];
+    const pumpFlowRateData = [{ x: 0, y: 0 }];
+    const setPumpFlowRateData = [{ x: 0, y: 0 }];
+    const currBrewWeightData = [{ x: 0, y: 0 }];
+    const dimmerPowerData = [{ x: 0, y: 0 }];
+
+    console.log("Chart.js loaded?", typeof Chart);
+    console.log("Canvas element:", document.getElementById("telemetryChart"));
+
+    const ctx = document.getElementById("telemetryChart").getContext("2d");
+
+    const chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        datasets: [
+          {
+            label: "Input Pressure (Bar)",
+            data: inputPressureData,
+            borderColor: "red",
+            backgroundColor: "rgba(255, 0, 0, 0.1)",
+            yAxisID: "y",
+            pointRadius: 0,
+            tension: 0.3,
+          },
+          {
+            label: "Set Pressure (Bar)",
+            data: setPressureData,
+            borderColor: "darkred",
+            borderDash: [5, 5],
+            backgroundColor: "rgba(139, 0, 0, 0.1)",
+            yAxisID: "y",
+            pointRadius: 0,
+            tension: 0.3,
+          },
+          {
+            label: "Pump Flow (mL/s)",
+            data: pumpFlowRateData,
+            borderColor: "green",
+            backgroundColor: "rgba(0, 128, 0, 0.1)",
+            yAxisID: "y",
+            pointRadius: 0,
+            tension: 0.3,
+          },
+          {
+            label: "Set Pump Flow (mL/s)",
+            data: setPumpFlowRateData,
+            borderColor: "darkgreen",
+            borderDash: [5, 5],
+            backgroundColor: "rgba(0, 100, 0, 0.1)",
+            yAxisID: "y",
+            pointRadius: 0,
+            tension: 0.3,
+          },
+          {
+            label: "Weight Brewed (g)",
+            data: currBrewWeightData,
+            borderColor: "blue",
+            backgroundColor: "rgba(0, 0, 255, 0.1)",
+            yAxisID: "y1",
+            pointRadius: 0,
+            tension: 0.3,
+          },
+          {
+            label: "Pump Power Pct",
+            data: dimmerPowerData,
+            borderColor: "purple",
+            backgroundColor: "rgba(128, 0, 128, 0.1)",
+            yAxisID: "y1",
+            pointRadius: 0,
+            tension: 0.3,
+          }
+        ]
       },
-      {
-        label: "Set Pressure (Bar)",
-        data: setPressureData,
-        borderColor: "darkred",
-        borderDash: [5, 5],
-        backgroundColor: "rgba(139, 0, 0, 0.1)",
-        yAxisID: "y",
-        pointRadius: 0,
-        tension: 0.3,
-      },
-      {
-        label: "Pump Flow (mL/s)",
-        data: pumpFlowRateData,
-        borderColor: "green",
-        backgroundColor: "rgba(0, 128, 0, 0.1)",
-        yAxisID: "y",
-        pointRadius: 0,
-        tension: 0.3,
-      },
-      {
-        label: "Set Pump Flow (mL/s)",
-        data: setPumpFlowRateData,
-        borderColor: "darkgreen",
-        borderDash: [5, 5],
-        backgroundColor: "rgba(0, 100, 0, 0.1)",
-        yAxisID: "y",
-        pointRadius: 0,
-        tension: 0.3,
-      },
-      {
-        label: "Weight Brewed (g)",
-        data: currBrewWeightData,
-        borderColor: "blue",
-        backgroundColor: "rgba(0, 0, 255, 0.1)",
-        yAxisID: "y1",
-        pointRadius: 0,
-        tension: 0.3,
-      },
-      {
-        label: "Pump Power Pct",
-        data: dimmerPowerData,
-        borderColor: "purple",
-        backgroundColor: "rgba(128, 0, 128, 0.1)",
-        yAxisID: "y1",
-        pointRadius: 0,
-        tension: 0.3,
+
+      options: {
+        animation: false,
+        parsing: false,
+        scales: {
+          x: {
+            type: "linear",
+            title: { display: true, text: "Time (s)" },
+            //min: 0,
+            //max: 30
+          },
+          y: {
+            type: "linear",
+            position: "left",
+            title: { display: true, text: "Pressure (bar) and Flow (mL/s)" },
+            min: 0,
+            max: 11
+          },
+          y1: {
+            type: "linear",
+            position: "right",
+            title: { display: true, text: "Weight (g) and Power Pct" },
+            min: 0,
+            max: 100,
+            grid: { drawOnChartArea: false }
+          }
+        }
       }
-    ]
-  },
+    });
 
-  options: {
-    animation: false,
-    parsing: false,
-    scales: {
-      x: {
-        type: "linear",
-        title: { display: true, text: "Time (s)" },
-        //min: 0,
-        //max: 30
-      },
-      y: {
-        type: "linear",
-        position: "left",
-        title: { display: true, text: "Pressure (bar) and Flow (mL/s)" },
-        min: 0,
-        max: 11
-      },
-      y1: {
-        type: "linear",
-        position: "right",
-        title: { display: true, text: "Weight (g) and Power Pct" },
-        min: 0,
-        max: 100,
-        grid: { drawOnChartArea: false }
+    const eventSource = new EventSource("/events");
+
+    eventSource.onmessage = (event) => {
+      if (!event.data.startsWith("{")) return;
+    };
+
+    let startTime = null;
+    let isBrewing = false;
+
+    eventSource.addEventListener("brew_state", (event) => {
+      const state = event.data;
+
+      if (state === "start") {
+        startTime = Date.now();
+        isBrewing = true;
+        inputPressureData.length = 0;
+        setPressureData.length = 0;
+        pumpFlowRateData.length = 0;
+        setPumpFlowRateData.length = 0;
+        currBrewWeightData.length = 0;
+        dimmerPowerData.length = 0;
+        chart.update();
+      } else if (state === "stop") {
+        isBrewing = false;
       }
-    }
-  }
+    });
+
+    eventSource.addEventListener("brew_event", (event) => {
+      if (!isBrewing) return;
+
+      try {
+        //console.log("Raw event:", event.data);
+        const data = JSON.parse(event.data);
+        const now = Date.now();
+        const t = (now - startTime) / 1000; // time in seconds
+
+        if (data.inputPressure !== undefined) {
+          inputPressureData.push({ x: t, y: data.inputPressure });
+          if (inputPressureData.length > 1000) inputPressureData.shift();
+        }
+
+        if (data.setPressure !== undefined) {
+          setPressureData.push({ x: t, y: data.setPressure });
+          if (setPressureData.length > 1000) setPressureData.shift();
+        }
+
+        if (data.pumpFlowRate !== undefined) {
+          pumpFlowRateData.push({ x: t, y: data.pumpFlowRate });
+          if (pumpFlowRateData.length > 1000) pumpFlowRateData.shift();
+        }
+
+        if (data.setPumpFlowRate !== undefined) {
+          setPumpFlowRateData.push({ x: t, y: data.setPumpFlowRate });
+          if (setPumpFlowRateData.length > 1000) setPumpFlowRateData.shift();
+        }
+
+        if (data.currBrewWeight !== undefined) {
+          currBrewWeightData.push({ x: t, y: data.currBrewWeight });
+          if (currBrewWeightData.length > 1000) currBrewWeightData.shift();
+        }
+
+        if (data.dimmerPower !== undefined) {
+          dimmerPowerData.push({ x: t, y: data.dimmerPower });
+          if (dimmerPowerData.length > 1000) dimmerPowerData.shift();
+        }
+
+        chart.update("none");
+      } 
+      catch (err) {
+        console.warn("Bad JSON:", event.data);
+      }
+    });
+  });
 });
 
-const eventSource = new EventSource("/events");
-
-eventSource.onmessage = (event) => {
-  if (!event.data.startsWith("{")) return;
-};
-
-let startTime = null;
-let isBrewing = false;
-
-eventSource.addEventListener("brew_state", (event) => {
-  const state = event.data;
-
-  if (state === "start") {
-    startTime = Date.now();
-    isBrewing = true;
-    inputPressureData.length = 0;
-    setPressureData.length = 0;
-    pumpFlowRateData.length = 0;
-    setPumpFlowRateData.length = 0;
-    currBrewWeightData.length = 0;
-    dimmerPowerData.length = 0;
-    chart.update();
-  } else if (state === "stop") {
-    isBrewing = false;
-  }
-});
-
-eventSource.addEventListener("brew_event", (event) => {
-  if (!isBrewing) return;
-
-  try {
-    console.log("Raw event:", event.data);
-    const data = JSON.parse(event.data);
-    const now = Date.now();
-    const t = (now - startTime) / 1000; // time in seconds
-
-    if (data.inputPressure !== undefined) {
-      inputPressureData.push({ x: t, y: data.inputPressure });
-      if (inputPressureData.length > 1000) inputPressureData.shift();
-    }
-
-    if (data.setPressure !== undefined) {
-      setPressureData.push({ x: t, y: data.setPressure });
-      if (setPressureData.length > 1000) setPressureData.shift();
-    }
-
-    if (data.pumpFlowRate !== undefined) {
-      pumpFlowRateData.push({ x: t, y: data.pumpFlowRate });
-      if (pumpFlowRateData.length > 1000) pumpFlowRateData.shift();
-    }
-
-    if (data.setPumpFlowRate !== undefined) {
-      setPumpFlowRateData.push({ x: t, y: data.setPumpFlowRate });
-      if (setPumpFlowRateData.length > 1000) setPumpFlowRateData.shift();
-    }
-
-    if (data.currBrewWeight !== undefined) {
-      currBrewWeightData.push({ x: t, y: data.currBrewWeight });
-      if (currBrewWeightData.length > 1000) currBrewWeightData.shift();
-    }
-
-    if (data.dimmerPower !== undefined) {
-      dimmerPowerData.push({ x: t, y: data.dimmerPower });
-      if (dimmerPowerData.length > 1000) dimmerPowerData.shift();
-    }
-
-    chart.update("none");
-  } 
-  catch (err) {
-    console.warn("Bad JSON:", event.data);
-  }
-});
 </script>
 
+</div>
 
 </body>
 </html>
-
-%FOOTER%

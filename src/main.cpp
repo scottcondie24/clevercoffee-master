@@ -1207,18 +1207,21 @@ void setup() {
         }
     }
 
-    if (config.get<bool>("dimmer.enabled")) {
+    if (config.get<bool>("dimmer.enabled") && config.get<bool>("hardware.sensors.pressure.enabled")) {
         parseDefaultProfiles();
         populateProfileNames();
         profilesCount = loadedProfiles.size();
         LOGF(INFO, "Loaded %d brew profiles", profilesCount);
-        currentProfileIndex = selectedProfile;
+        currentProfileIndex = config.get<int>("dimmer.profile");
+
         if (currentProfileIndex >= profilesCount) {
             currentProfileIndex = 0;
         }
+
         dimmerTypeHandler();
 
         BrewProfile* profile = getProfile(currentProfileIndex);
+
         if (profile) {
             profileName = profile->name;
 
@@ -1233,6 +1236,7 @@ void setup() {
             LOG(WARNING, "Profile not found");
         }
 
+        // this shouldnt ever be needed, need to test it gets initialised
         if (!config.get<float>("dimmer.calibration.flow_rate1") || !config.get<float>("dimmer.calibration.flow_rate2") || !config.get<float>("dimmer.calibration.opv_pressure")) {
             config.set<float>("dimmer.calibration.flow_rate1", PUMP_CALIBRATE_FLOW1);
             config.set<float>("dimmer.calibration.flow_rate2", PUMP_CALIBRATE_FLOW2);
@@ -1241,6 +1245,13 @@ void setup() {
 
         auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
         dimmer->setCalibration(config.get<float>("dimmer.calibration.flow_rate1"), config.get<float>("dimmer.calibration.flow_rate2"), config.get<float>("dimmer.calibration.opv_pressure"));
+    }
+    else {
+        config.set<int>("dimmer.mode", POWER);
+
+        if (!config.save()) {
+            LOG(ERROR, "Failed to save config to filesystem!");
+        }
     }
 }
 

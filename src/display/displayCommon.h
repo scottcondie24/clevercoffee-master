@@ -919,22 +919,32 @@ void displayScrollingSubstring(int x, int y, int displayWidth, const char* text,
 void drawEncoderControlLabel() {
     // u8g2->print(menuLevel == 1 ? ">" : " ");
     u8g2->print(" ");
-    u8g2->print(dimmerModeName[dimmerMode]);
+    u8g2->print(dimmerModes[config.get<int>("dimmer.mode")]);
 }
 
 void drawEncoderControlValue() {
     // u8g2->print(menuLevel == 2 ? ">" : " ");
-    if (dimmerMode == POWER) {
-        u8g2->print(pumpPowerSetpoint, 0);
-    }
-    else if (dimmerMode == PRESSURE) {
-        u8g2->print(pumpPressureSetpoint, 1);
-    }
-    else if (dimmerMode == FLOW) {
-        u8g2->print(pumpFlowSetpoint, 1);
-    }
-    else if (dimmerMode == PROFILE) {
-        const char* name = (machineState == kBrew) ? phaseName : profileName;
-        displayScrollingSubstring(83, 55, 38, name, false);
+    switch (config.get<int>("dimmer.mode")) {
+        case POWER:
+            u8g2->print(config.get<float>("dimmer.setpoint.power"), 0);
+            break;
+
+        case PRESSURE:
+            u8g2->print(config.get<float>("dimmer.setpoint.pressure"), 1);
+            break;
+
+        case FLOW:
+            u8g2->print(config.get<float>("dimmer.setpoint.flow"), 1);
+            break;
+
+        case PROFILE:
+            {
+                const char* name = (machineState == kBrew) ? phaseName : profileName;
+                displayScrollingSubstring(83, 55, 38, name, false);
+                break;
+            }
+
+        default:
+            break;
     }
 }

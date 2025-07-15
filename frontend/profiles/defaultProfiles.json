@@ -356,7 +356,7 @@
         "pump": "pressure"
       },
       {
-        "name": "fill end",
+        "name": "hold",
         "pressure": 3,
         "exit_flow_under": 1,
         "seconds": 12,
@@ -365,7 +365,7 @@
         "pump": "pressure"
       },
       {
-        "name": "infuse",
+        "name": "decline",
         "pressure": 1.5,
         "weight": 4.0,
         "seconds": 13,
@@ -384,7 +384,7 @@
       },
       {
         "name": "extract",
-        "flow": 3.4,
+        "flow": 3.0,
         "seconds": 30,
         "exit_type": "none",
         "transition": "smooth",
@@ -411,7 +411,7 @@
       {
         "name": "rise and hold",
         "pressure": 6,
-        "seconds": 16,
+        "seconds": 15,
         "exit_type": "none",
         "transition": "fast",
         "pump": "pressure"
@@ -462,7 +462,7 @@
       {
         "name": "flow",
         "flow": 2.2,
-        "seconds": 20,
+        "seconds": 40,
         "exit_type": "none",
         "transition": "smooth",
         "pump": "flow"
@@ -479,14 +479,14 @@
       {
         "name": "fill",
         "flow": 8,
-        "exit_pressure_over": 3,
+        "exit_pressure_over": 2.5,
         "seconds": 15,
         "exit_type": "pressure_over",
         "transition": "fast",
         "pump": "flow"
       },
       {
-        "name": "pressure",
+        "name": "hold",
         "pressure": 3,
         "exit_flow_under": 0.9,
         "seconds": 12,
@@ -495,17 +495,8 @@
         "pump": "pressure"
       },
       {
-        "name": "hold",
-        "pressure": 0.1,
-        "exit_flow_over": 1,
-        "seconds": 6,
-        "exit_type": "flow_over",
-        "transition": "fast",
-        "pump": "pressure"
-      },
-      {
         "name": "pressure",
-        "pressure": 11,
+        "pressure": 10,
         "exit_pressure_over": 8.8,
         "seconds": 6,
         "exit_type": "pressure_over",
