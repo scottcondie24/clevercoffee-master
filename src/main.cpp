@@ -979,6 +979,16 @@ void setup() {
         auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
         dimmer->begin();
         dimmer->setPower(0);
+        dimmer->setControlMethod((config.get<int>("dimmer.type") == 1) ? PumpDimmer::ControlMethod::PHASE : PumpDimmer::ControlMethod::PSM);
+        LOGF(INFO, "Frequency: %0.01f", dimmer->getFrequency());
+
+        // this shouldnt ever be needed, need to test it gets initialised
+        if (!config.get<float>("dimmer.calibration.flow_rate1") || !config.get<float>("dimmer.calibration.flow_rate2") || !config.get<float>("dimmer.calibration.opv_pressure")) {
+            config.set<float>("dimmer.calibration.flow_rate1", PUMP_CALIBRATE_FLOW1);
+            config.set<float>("dimmer.calibration.flow_rate2", PUMP_CALIBRATE_FLOW2);
+            config.set<float>("dimmer.calibration.opv_pressure", PUMP_OPV_PRESSURE);
+        }
+
         dimmer->setCalibration(config.get<float>("dimmer.calibration.flow_rate1"), config.get<float>("dimmer.calibration.flow_rate2"), config.get<float>("dimmer.calibration.opv_pressure"));
     }
     else {
@@ -1235,16 +1245,6 @@ void setup() {
         else {
             LOG(WARNING, "Profile not found");
         }
-
-        // this shouldnt ever be needed, need to test it gets initialised
-        if (!config.get<float>("dimmer.calibration.flow_rate1") || !config.get<float>("dimmer.calibration.flow_rate2") || !config.get<float>("dimmer.calibration.opv_pressure")) {
-            config.set<float>("dimmer.calibration.flow_rate1", PUMP_CALIBRATE_FLOW1);
-            config.set<float>("dimmer.calibration.flow_rate2", PUMP_CALIBRATE_FLOW2);
-            config.set<float>("dimmer.calibration.opv_pressure", PUMP_OPV_PRESSURE);
-        }
-
-        auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
-        dimmer->setCalibration(config.get<float>("dimmer.calibration.flow_rate1"), config.get<float>("dimmer.calibration.flow_rate2"), config.get<float>("dimmer.calibration.opv_pressure"));
     }
     else {
         config.set<int>("dimmer.mode", POWER);

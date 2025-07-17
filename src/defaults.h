@@ -68,7 +68,7 @@
 #define PUMP_PRESSURE_SETPOINT    9.0               // PID Pressure target
 #define PUMP_FLOW_SETPOINT        8.0               // PID Flow target
 #define PUMP_CALIBRATE_FLOW1      292.4             // Weight of water out of the group head in 30s
-#define PUMP_CALIBRATE_FLOW2      135.6             // Weight of water out of the return line in 30s
+#define PUMP_CALIBRATE_FLOW2      124.4             // Weight of water out of the return line in 30s
 #define PUMP_OPV_PRESSURE         10.0              // Pressure when OPV valve is open
 
 #define PID_KP_REGULAR_MIN            0.0

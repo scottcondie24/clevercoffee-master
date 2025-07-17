@@ -429,8 +429,8 @@
     ]
   },
   {
-    "name": "Blooming Espresso",
-    "shortname": "bloomingEspresso",
+    "name": "Gentle Bloom",
+    "shortname": "gentleBloom",
     "temperature": 92,
     "scales": false,
     "flow": true,
@@ -438,7 +438,7 @@
       {
         "name": "infuse",
         "flow": 4,
-        "exit_pressure_over": 1,
+        "exit_pressure_over": 1.3,
         "seconds": 23,
         "exit_type": "pressure_over",
         "transition": "fast",
@@ -495,17 +495,27 @@
         "pump": "pressure"
       },
       {
-        "name": "pressure",
-        "pressure": 10,
-        "exit_pressure_over": 8.8,
-        "seconds": 6,
-        "exit_type": "pressure_over",
+        "name": "pressure ramp",
+        "pressure": 8.5,
+        "exit_flow_over": 3,
+        "seconds": 5,
+        "exit_type": "flow_over",
         "transition": "smooth",
         "pump": "pressure"
       },
       {
-        "name": "extract",
-        "flow": 3.5,
+        "name": "pressure",
+        "pressure": 8.5,
+        "flow": 3,
+        "exit_flow_over": 3,
+        "seconds": 60,
+        "exit_type": "flow_over",
+        "transition": "smooth",
+        "pump": "pressure"
+      },
+      {
+        "name": "flow limit",
+        "flow": 3,
         "seconds": 60,
         "exit_type": "none",
         "transition": "smooth",
