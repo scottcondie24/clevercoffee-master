@@ -105,7 +105,7 @@ inline void printScreen() {
         u8g2->setFont(u8g2_font_profont10_tf);
         u8g2->setCursor(32, 46);
         u8g2->print("P:");
-        u8g2->print(inputPressure, 2);
+        u8g2->print(inputPressure, 1);
         u8g2->print(" ");
         u8g2->print(dimmerPower, 0);
         drawEncoderControlLabel();

@@ -99,23 +99,6 @@ void dimmerModeHandler() {
 }
 
 void dimmerTypeHandler() {
-    if (config.get<int>("dimmer.type") == 0) {
-        pressureKp = config.get<float>("dimmer.psm.pressure.kp");
-        pressureKi = config.get<float>("dimmer.psm.pressure.ki");
-        pressureKd = config.get<float>("dimmer.psm.pressure.kd");
-        flowKp = config.get<float>("dimmer.psm.flow.kp");
-        flowKi = config.get<float>("dimmer.psm.flow.ki");
-        flowKd = config.get<float>("dimmer.psm.flow.kd");
-    }
-    else {
-        pressureKp = config.get<float>("dimmer.phase.pressure.kp");
-        pressureKi = config.get<float>("dimmer.phase.pressure.ki");
-        pressureKd = config.get<float>("dimmer.phase.pressure.kd");
-        flowKp = config.get<float>("dimmer.phase.flow.kp");
-        flowKi = config.get<float>("dimmer.phase.flow.ki");
-        flowKd = config.get<float>("dimmer.phase.flow.kd");
-    }
-
     if (pumpRelay) {
         if (pumpRelay->getType() == PumpControlType::DIMMER) {
             auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
@@ -173,11 +156,11 @@ void runProfile(int profileIndex) {
                 break;
 
             case EXIT_TYPE_FLOW_OVER:
-                exitReached = (pumpFlowRate >= phase.exit_flow_over);
+                exitReached = (pumpFlowRateFilter >= phase.exit_flow_over);
                 break;
 
             case EXIT_TYPE_FLOW_UNDER:
-                exitReached = (pumpFlowRate <= phase.exit_flow_under);
+                exitReached = (pumpFlowRateFilter <= phase.exit_flow_under);
                 break;
         }
 
@@ -188,7 +171,7 @@ void runProfile(int profileIndex) {
         if (exitReached || (currBrewTime > phase.seconds * 1000 + phaseTiming)) {
             lastPressure = inputPressureFilter;
             lastSetPressure = phase.pressure;
-            lastFlow = pumpFlowRate;
+            lastFlow = pumpFlowRateFilter;
             lastSetFlow = phase.flow;
             currentPhaseIndex += 1;
             phaseTiming = currBrewTime;
@@ -201,7 +184,6 @@ void runProfile(int profileIndex) {
                 LOGF(DEBUG, "Moving to Phase %d: %s for %.1f seconds", currentPhaseIndex, profile->phases[currentPhaseIndex].name, profile->phases[currentPhaseIndex].seconds);
             }
             else {
-                LOG(DEBUG, "Brew profile complete");
                 brewProfileComplete = true;
                 return;
             }
@@ -220,7 +202,7 @@ void runProfile(int profileIndex) {
     BrewPhase& phase = profile->phases[currentPhaseIndex];
 
     if (phaseReset) {
-        LOGF(DEBUG, "Phase %d: %s for %.1f seconds", currentPhaseIndex, phase.name, phase.seconds);
+        LOGF(DEBUG, "Phase %s: exit_type=%d, flow_over=%.2f, pressure_over=%.2f, for %.1f seconds", phase.name, phase.exit_type, phase.exit_flow_over, phase.exit_pressure_over, phase.seconds);
 
         if ((phase.transition == TRANSITION_SMOOTH) && (phase.seconds < 1.0)) {
             LOGF(WARNING, "Phase '%s' duration (%.2f s) is less than recommended minimum of 1 second for smooth transitions", phase.name, phase.seconds);
@@ -431,6 +413,24 @@ void loopPump() {
                     pumpdt = (currentMillisPumpControl - previousMillisPumpControl) / 1000.0; // set to between 50ms and 100ms
                 }
 
+                // allow changes to PID parameters at any time
+                if (config.get<int>("dimmer.type") == 0) {
+                    pressureKp = config.get<float>("dimmer.psm.pressure.kp");
+                    pressureKi = config.get<float>("dimmer.psm.pressure.ki");
+                    pressureKd = config.get<float>("dimmer.psm.pressure.kd");
+                    flowKp = config.get<float>("dimmer.psm.flow.kp");
+                    flowKi = config.get<float>("dimmer.psm.flow.ki");
+                    flowKd = config.get<float>("dimmer.psm.flow.kd");
+                }
+                else {
+                    pressureKp = config.get<float>("dimmer.phase.pressure.kp");
+                    pressureKi = config.get<float>("dimmer.phase.pressure.ki");
+                    pressureKd = config.get<float>("dimmer.phase.pressure.kd");
+                    flowKp = config.get<float>("dimmer.phase.flow.kp");
+                    flowKi = config.get<float>("dimmer.phase.flow.ki");
+                    flowKd = config.get<float>("dimmer.phase.flow.kd");
+                }
+
                 PidResults[loopIndexPid][8] = currentMillisPumpControl - previousMillisPumpControl;
                 previousMillisPumpControl = currentMillisPumpControl;
 
@@ -459,7 +459,7 @@ void loopPump() {
                         inputKd = pressureKd;
                     }
                     else if (pumpControlMode == FLOW) {
-                        inputPID = pumpFlowRate;
+                        inputPID = pumpFlowRateFilter;
                         targetPID = setPumpFlowRate;
                         // Smooth pressure override
                         targetPID = applySmoothOverride(targetPID, inputPressureFilter, flowPressureCeiling, flowPressureRange, 2); // 1 is linear reduction, 2 quadratic, 3 cubic
@@ -468,9 +468,10 @@ void loopPump() {
                         inputKd = flowKd;
                     }
 
+                    float iMax = config.get<float>("dimmer.i_max") / inputKi;
                     float error = targetPID - inputPID;
                     pumpIntegral += error * pumpdt; // Integrate error
-                    pumpIntegral = constrain(pumpIntegral, -config.get<float>("dimmer.i_max"), config.get<float>("dimmer.i_max"));
+                    pumpIntegral = constrain(pumpIntegral, -iMax, iMax);
                     float pumpderivative = (error - previousError) / pumpdt;
                     previousError = error;
 
@@ -486,10 +487,8 @@ void loopPump() {
                 // Only update if power changed
                 if (pumpRelay->getType() == PumpControlType::DIMMER) {
                     auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
-
-                    if (dimmer->getPower() != dimmerPower) {
-                        dimmer->setPower(dimmerPower);
-                    }
+                    dimmer->setPressure(inputPressureFilter);
+                    dimmer->setPower(dimmerPower);
                 }
 
                 // DEBUGGING

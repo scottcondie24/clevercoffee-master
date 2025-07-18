@@ -280,7 +280,7 @@ class Config {
             _configDefs.emplace("dimmer.enabled", ConfigDef::forBool(false));
             _configDefs.emplace("dimmer.type", ConfigDef::forInt(0, 0, 1));
             _configDefs.emplace("dimmer.mode", ConfigDef::forInt(1, 0, 3));
-            _configDefs.emplace("dimmer.profile", ConfigDef::forInt(1, 0, 12));
+            _configDefs.emplace("dimmer.profile", ConfigDef::forInt(1, 0, 11));
             _configDefs.emplace("dimmer.setpoint.power", ConfigDef::forDouble(PUMP_POWER_SETPOINT, PUMP_POWER_SETPOINT_MIN, PUMP_POWER_SETPOINT_MAX));
             _configDefs.emplace("dimmer.setpoint.pressure", ConfigDef::forDouble(PUMP_PRESSURE_SETPOINT, PUMP_PRESSURE_SETPOINT_MIN, PUMP_PRESSURE_SETPOINT_MAX));
             _configDefs.emplace("dimmer.setpoint.flow", ConfigDef::forDouble(PUMP_FLOW_SETPOINT, PUMP_FLOW_SETPOINT_MIN, PUMP_FLOW_SETPOINT_MAX));

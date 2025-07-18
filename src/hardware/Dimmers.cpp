@@ -1,5 +1,8 @@
 #include "Dimmers.h"
 
+unsigned int delayLowLut[9] = {5695, 5343, 4992, 4673, 4365, 4030, 3607, 3149, 2630};
+unsigned int delayHighLut[21] = {2630, 2578, 2514, 2440, 2367, 2293, 2219, 2146, 2072, 1998, 1924, 1851, 1777, 1641, 1498, 1355, 1213, 1070, 853, 526, 200};
+
 const char* controlMethodToString(PumpDimmer::ControlMethod method) {
     switch (method) {
         case PumpDimmer::ControlMethod::PSM:
@@ -23,8 +26,10 @@ PumpDimmer::PumpDimmer(GPIOPin& outputPin, GPIOPin& zeroCrossPin, int timerNum) 
 void PumpDimmer::begin() {
     _out.write(LOW);
 
+    static bool adjusted = false;
     unsigned long now = 0;
 
+    // could add a for loop and average
     while (!_zc.read())
         ;
     _lastZC = micros();
@@ -37,13 +42,14 @@ void PumpDimmer::begin() {
     now = micros();
     _hz = 1000000.0f / (float)(now - _lastZC);
 
-    if (_hz > 55.0f) {
-        _maxDelay = 4717; // 60hz
-        _minDelay = 167;
-    }
-    else {
-        _maxDelay = 5660; // 50hz
-        _minDelay = 200;
+    if (_hz > 55.0f && adjusted == false) {
+        for (int i = 0; i < 9; i++) {
+            delayLowLut[i] = (unsigned int)(delayLowLut[i] * 0.8333f);
+        }
+        for (int i = 0; i < 21; i++) {
+            delayHighLut[i] = (unsigned int)(delayHighLut[i] * 0.8333f);
+        }
+        adjusted = true;
     }
 
     _timer = timerBegin(_timerNum, 80, true); // 80 prescaler = 1 µs ticks (assuming 80 MHz APB clock)
@@ -73,8 +79,48 @@ void PumpDimmer::begin() {
     }
 }
 
+int PumpDimmer::getInterpolatedDelay(float powerPercent) {
+    if (powerPercent >= 100) {
+        return delayHighLut[20];
+    }
+
+    if (powerPercent <= 0) {
+        return delayLowLut[0];
+    }
+
+    if (powerPercent < 80.0f) {
+        // Use coarse LUT
+        float stepSize = 10.0f;
+        int index = powerPercent / 10;
+        float fraction = (powerPercent - (index * stepSize)) / stepSize;
+        float delayLow = delayLowLut[index];
+        float delayHigh = delayLowLut[index + 1];
+
+        return delayLow + fraction * (delayHigh - delayLow);
+    }
+    else {
+        // Use fine LUT
+        float finePower = powerPercent - 80.0f; // 0 to 20
+        int index = finePower;                  // Integer percent (0–20)
+        float fraction = finePower - index;
+        float delayLow = delayHighLut[index];
+        float delayHigh = delayHighLut[index + 1];
+
+        return delayLow + fraction * (delayHigh - delayLow);
+    }
+}
+
 void PumpDimmer::setPower(int power) {
     _power = constrain((int)power, 0, 100);
+    if (_method == ControlMethod::PHASE) {
+        float pressureScaler = _pressure * 6.0f;
+        _scaledPower = pressureScaler + (100 - pressureScaler) * (_power * 0.01f);
+        _delayMicros = instance->getInterpolatedDelay(_scaledPower); // Lower delay = more power (fired earlier)
+    }
+}
+
+void PumpDimmer::setPressure(float pressure) {
+    _pressure = pressure;
 }
 
 int PumpDimmer::getPower() const {
@@ -117,9 +163,8 @@ float PumpDimmer::getFlow(float pressure) const {
         result = powerMultiplier * (_deltaFlow * _opvPressureInv * pressure + _flowRate1);
     }
     else {
-        float powerMultiplier = _state ? float(_power) * 0.01f : 0.0f;
-        powerMultiplier = (-0.98725659f * (powerMultiplier * powerMultiplier) + 2.00758877f * powerMultiplier - 0.01675258f);
-        result = (_deltaFlow * _opvPressureInv * pressure + powerMultiplier * _flowRate1);
+        float powerMultiplier = _state ? _scaledPower * 0.01f : 0.0f;
+        result = powerMultiplier * _flowRate1 - 0.06f * (1 - powerMultiplier) * pressure * _flowRate1 + pressure * _deltaFlow * _opvPressureInv;
     }
 
     return result > 0.0f ? result : 0.0f;
@@ -190,9 +235,8 @@ void PumpDimmer::handlePhaseZeroCross() {
 
     _phaseState = TimerPhase::DELAY;
     timerWrite(_timer, 0);
-    uint32_t delayMicros = map(_power, 0, 100, _maxDelay, _minDelay); // Lower delay = more power (fired earlier)
     timerAlarmDisable(_timer);
-    timerAlarmWrite(_timer, delayMicros, false);
+    timerAlarmWrite(_timer, _delayMicros, false);
     timerAlarmEnable(_timer);
 }
 

@@ -13,7 +13,9 @@ class PumpDimmer : public PumpControl {
         PumpDimmer(GPIOPin& outputPin, GPIOPin& zeroCrossPin, int timerNum);
 
         void begin();
+        int getInterpolatedDelay(float powerPercent);
         void setPower(int power);
+        void setPressure(float pressure);
         int getPower() const;
         void on();
         void off();
@@ -31,11 +33,14 @@ class PumpDimmer : public PumpControl {
         GPIOPin& _zc;
         int _timerNum;
         int _power;
+        float _scaledPower;
         int _psmAccumulated;
+        float _pressure;
         float _hz;
         int _maxDelay = 5660;
         int _minDelay = 200;
         bool _state;
+        uint32_t _delayMicros = 200;
         unsigned long _lastZC = 0;
         ControlMethod _method;
         hw_timer_t* _timer;

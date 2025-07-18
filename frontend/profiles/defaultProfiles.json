@@ -9,7 +9,7 @@
       {
         "name": "infuse",
         "flow": 8,
-        "exit_flow_over": 4,
+        "exit_pressure_over": 4,
         "seconds": 20,
         "exit_type": "pressure_over",
         "transition": "fast",
@@ -26,8 +26,10 @@
       {
         "name": "decline",
         "pressure": 6,
+        "flow": 1.5,
         "max_secondary": 6,
-        "seconds": 30,
+        "exit_pressure_under": 6,
+        "seconds": 20,
         "exit_type": "pressure_under",
         "transition": "smooth",
         "pump": "pressure"
@@ -73,9 +75,27 @@
         "weight": 4,
         "max_secondary": 8.5,
         "max_secondary_range": 5,
-        "seconds": 30,
+        "seconds": 12,
         "exit_type": "none",
         "transition": "fast",
+        "pump": "pressure"
+      },
+      {
+        "name": "rise and hold",
+        "pressure": 8.6,
+        "seconds": 2,
+        "exit_type": "none",
+        "transition": "fast",
+        "pump": "pressure"
+      },
+      {
+        "name": "pressure hold",
+        "pressure": 8.6,
+        "flow": 1.7,
+        "exit_flow_over": 1.7,
+        "seconds": 40,
+        "exit_type": "flow_over",
+        "transition": "smooth",
         "pump": "pressure"
       },
       {

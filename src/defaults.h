@@ -57,13 +57,13 @@
 #define PSM_FLOW_KP               8.0               // PID PSM control Flow target Kp
 #define PSM_FLOW_KI               30.0              // PID PSM control Flow target Ki
 #define PSM_FLOW_KD               0.0               // PID PSM control Flow target Kd
-#define PHASE_PRESSURE_KP         20.0              // PID Phase control Pressure target Kp
-#define PHASE_PRESSURE_KI         10.0              // PID Phase control Pressure target Ki
-#define PHASE_PRESSURE_KD         1.5               // PID Phase control Pressure target Kd
-#define PHASE_FLOW_KP             8.0               // PID Phase control Flow target Kp
-#define PHASE_FLOW_KI             30.0              // PID Phase control Flow target Ki
+#define PHASE_PRESSURE_KP         10.0              // PID Phase control Pressure target Kp
+#define PHASE_PRESSURE_KI         20.0              // PID Phase control Pressure target Ki
+#define PHASE_PRESSURE_KD         1.0               // PID Phase control Pressure target Kd
+#define PHASE_FLOW_KP             2.0               // PID Phase control Flow target Kp
+#define PHASE_FLOW_KI             15.0              // PID Phase control Flow target Ki
 #define PHASE_FLOW_KD             0.0               // PID Phase control Flow target Kd
-#define PUMP_I_MAX                8.0               // PID Dimmer integral anti windup
+#define PUMP_I_MAX                100.0             // PID Dimmer integral anti windup
 #define PUMP_POWER_SETPOINT       100.0             // PID Power target
 #define PUMP_PRESSURE_SETPOINT    9.0               // PID Pressure target
 #define PUMP_FLOW_SETPOINT        8.0               // PID Flow target

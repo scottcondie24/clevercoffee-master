@@ -1,4 +1,5 @@
 #include "brewProfiles.h"
+#include "Logger.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
@@ -15,15 +16,14 @@ bool loadDefaultProfilesFromFS(JsonDocument& doc) {
     File file = LittleFS.open("/profiles/defaultProfiles.json", "r");
 
     if (!file) {
-        Serial.println("Failed to open default profiles file!");
+        LOG(WARNING, "Failed to open default profiles file!");
         return false;
     }
 
     DeserializationError error = deserializeJson(doc, file);
 
     if (error) {
-        Serial.print("Failed to parse default profiles: ");
-        Serial.println(error.c_str());
+        LOGF(WARNING, "Failed to parse default profiles: %s", error.c_str());
         return false;
     }
 
@@ -46,44 +46,35 @@ BrewProfile* getProfile(size_t i) {
 }
 
 ExitType parseExitType(const char* str) {
-    if (strcmp(str, "flow_over") == 0) {
-        return EXIT_TYPE_FLOW_UNDER;
-    }
-    else if (strcmp(str, "flow_over") == 0) {
-        return EXIT_TYPE_FLOW_OVER;
-    }
-    else if (strcmp(str, "pressure_under") == 0) {
-        return EXIT_TYPE_PRESSURE_UNDER;
-    }
-    else if (strcmp(str, "pressure_over") == 0) {
-        return EXIT_TYPE_PRESSURE_OVER;
+    for (int i = 0; i < sizeof(exitTypeStrs) / sizeof(exitTypeStrs[0]); ++i) {
+        if (strcmp(str, exitTypeStrs[i]) == 0) {
+            return static_cast<ExitType>(i);
+        }
     }
 
+    LOGF(WARNING, "Unknown exit_type string: '%s'", str);
     return EXIT_TYPE_NONE;
 }
 
 TransitionType parseTransition(const char* str) {
-    if (strcmp(str, "smooth") == 0) {
-        return TRANSITION_SMOOTH;
-    }
-    else if (strcmp(str, "fast") == 0) {
-        return TRANSITION_FAST;
-    }
-    else if (strcmp(str, "hold") == 0) {
-        return TRANSITION_HOLD;
+    for (int i = 0; i < sizeof(transitionStrs) / sizeof(transitionStrs[0]); ++i) {
+        if (strcmp(str, transitionStrs[i]) == 0) {
+            return static_cast<TransitionType>(i);
+        }
     }
 
+    LOGF(WARNING, "Unknown transition string: '%s'", str);
     return TRANSITION_NONE;
 }
 
 PumpMode parsePumpMode(const char* str) {
-    if (strcmp(str, "pressure") == 0) {
-        return PRESSURE;
-    }
-    else if (strcmp(str, "flow") == 0) {
-        return FLOW;
+    for (int i = 0; i < sizeof(pumpModeStrs) / sizeof(pumpModeStrs[0]); ++i) {
+        if (strcmp(str, pumpModeStrs[i]) == 0) {
+            return static_cast<PumpMode>(i);
+        }
     }
 
+    LOGF(WARNING, "Unknown pump mode string: '%s'", str);
     return POWER;
 }
 
