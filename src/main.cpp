@@ -34,9 +34,9 @@
 #include "hardware/StandardLED.h"
 #include "hardware/Switch.h"
 #include "hardware/pinmapping.h"
+#include "hardware/pumpControl.h"
 #include "hardware/tempsensors/TempSensorDallas.h"
 #include "hardware/tempsensors/TempSensorTSIC.h"
-#include "hardware/pumpControl.h"
 
 // User configuration & defaults
 #include "defaults.h"
@@ -992,7 +992,7 @@ void setup() {
         dimmer->begin();
         dimmer->setPower(0);
         dimmer->setControlMethod((config.get<int>("dimmer.type") == 1) ? PumpDimmer::ControlMethod::PHASE : PumpDimmer::ControlMethod::PSM);
-        LOGF(INFO, "Frequency: %0.01f", dimmer->getFrequency());
+        LOGF(INFO, "Frequency: %0.01f Hz", dimmer->getFrequency());
 
         // this shouldnt ever be needed, need to test it gets initialised
         if (!config.get<float>("dimmer.calibration.flow_rate1") || !config.get<float>("dimmer.calibration.flow_rate2") || !config.get<float>("dimmer.calibration.opv_pressure")) {
@@ -1384,23 +1384,30 @@ void loopPid() {
     if (pumpRelay->getType() == PumpControlType::DIMMER) {
         if (((millis() - lastBrewEvent) > brewEventInterval) && (machineState == kBrew) && (!mqttUpdateRunning && !hassioUpdateRunning && !displayBufferReady && !temperatureUpdateRunning)) {
             websiteUpdateRunning = true;
+            String tempProfile = " ";
+            String tempPhase = " ";
+
+            if (config.get<int>("dimmer.mode") == PROFILE) {
+                tempProfile = profileName;
+                tempPhase = phaseName;
+            }
 
             // send brew data to website endpoint
             if (pumpControlMode == FLOW) {
-                sendBrewEvent(inputPressureFilter, 0.0, pumpFlowRate, setPumpFlowRate, currBrewWeight, dimmerPower);
+                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, pumpFlowRate, setPumpFlowRate, currBrewWeight, dimmerPower, dimmerModes[pumpControlMode], tempProfile, tempPhase);
             }
             else if (pumpControlMode == PRESSURE) {
-                sendBrewEvent(inputPressureFilter, setPressure, pumpFlowRate, 0.0, currBrewWeight, dimmerPower);
+                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, setPressure, pumpFlowRate, 0.0, currBrewWeight, dimmerPower, dimmerModes[pumpControlMode], tempProfile, tempPhase);
             }
             else {
-                sendBrewEvent(inputPressureFilter, 0.0, pumpFlowRate, 0.0, currBrewWeight, dimmerPower);
+                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, pumpFlowRate, 0.0, currBrewWeight, dimmerPower, dimmerModes[pumpControlMode], tempProfile, tempPhase);
             }
 
             lastBrewEvent = millis();
         }
     }
 
-    // refresh website if loop does not have anoth long running process already
+    // refresh website if loop does not have another long running process already
     if (((millis() - lastTempEvent) > tempEventInterval) && (!mqttUpdateRunning && !hassioUpdateRunning && !displayBufferReady && !temperatureUpdateRunning)) {
         websiteUpdateRunning = true;
 

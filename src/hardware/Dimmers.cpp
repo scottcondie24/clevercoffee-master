@@ -28,19 +28,33 @@ void PumpDimmer::begin() {
 
     static bool adjusted = false;
     unsigned long now = 0;
+    float testHz;
+    _hz = 50; // default
 
-    // could add a for loop and average
-    while (!_zc.read())
-        ;
-    _lastZC = micros();
-    delay(5);
-    while (_zc.read())
-        ;
-    delay(5);
-    while (!_zc.read())
-        ;
-    now = micros();
-    _hz = 1000000.0f / (float)(now - _lastZC);
+    for (int i = 0; i < 5; i++) {
+        while (!_zc.read())
+            ;
+        _lastZC = micros();
+        delay(5);
+        while (_zc.read())
+            ;
+        delay(5);
+        while (!_zc.read())
+            ;
+        now = micros();
+        testHz = 1000000.0f / (float)(now - _lastZC);
+        if (testHz > 48 && testHz < 52) {
+            _hz = testHz;
+            break;
+        }
+        else if (testHz > 58 && testHz < 62) {
+            _hz = testHz;
+            break;
+        }
+        while (_zc.read())
+            ;
+        delay(5);
+    }
 
     if (_hz > 55.0f && adjusted == false) {
         for (int i = 0; i < 9; i++) {

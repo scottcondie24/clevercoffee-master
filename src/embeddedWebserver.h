@@ -639,25 +639,31 @@ inline void sendTempEvent(const double currentTemp, const double targetTemp, con
     events.send(getTempString().c_str(), "new_temps", millis());
 }
 
-void sendBrewEvent(float inputPressure, float setPressure, float pumpFlowRate, float setPumpFlowRate, float currBrewWeight, int dimmerPower) {
+void sendBrewEvent(float time, float inputPressure, float setPressure, float pumpFlowRate, float setPumpFlowRate, float currBrewWeight, int dimmerPower, String control, String profile, String phase) {
     JsonDocument doc;
 
+    doc["currBrewTime"] = time;
     doc["inputPressure"] = inputPressure;
     doc["setPressure"] = setPressure;
     doc["pumpFlowRate"] = pumpFlowRate;
     doc["setPumpFlowRate"] = setPumpFlowRate;
     doc["currBrewWeight"] = currBrewWeight;
     doc["dimmerPower"] = dimmerPower;
+    doc["control"] = control;
+    doc["profile"] = profile;
+    doc["phase"] = phase;
 
     String jsonBrew;
     serializeJson(doc, jsonBrew);
 
     events.send(jsonBrew.c_str(), "brew_event", millis());
+    // LOGF(DEBUG, "%s", jsonTemps.c_str());
 }
 
 void startBrewEvent() {
     events.send("start", "brew_state", millis());
 }
+
 void stopBrewEvent() {
     events.send("stop", "brew_state", millis());
 }
