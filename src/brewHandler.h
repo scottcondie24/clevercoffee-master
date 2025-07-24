@@ -335,7 +335,6 @@ inline bool brew() {
                         currBrewState = kBrewFinished;
                     }
                 }
-
                 else if (config.get<int>("dimmer.mode") == 3 && brewProfileComplete) {
                     LOG(INFO, "Brew profile finished");
                     currBrewState = kBrewFinished;

@@ -50,7 +50,7 @@ const vueApp = Vue.createApp({
                 // Build URL with dynamic filter, offset, and limit
                 let url = `/parameters?offset=${offset}&limit=${limit}`;
 
-            if (filter) {
+                if (filter) {
                     url += `&filter=${encodeURIComponent(filter)}`;
                 }
 

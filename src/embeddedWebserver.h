@@ -267,6 +267,8 @@ inline void serverSetup() {
             return request->requestAuthentication();
         }
 
+        LOGF(DEBUG, "[Heap] Free: %u  MaxAlloc: %u", ESP.getFreeHeap(), heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
+
         if (request->method() == 1) { // HTTP_GET
             const auto& registry = ParameterRegistry::getInstance();
             const auto& parameters = registry.getParameters();
@@ -346,6 +348,7 @@ inline void serverSetup() {
 
             response->printf("],\"offset\":%d,\"limit\":%d,\"returned\":%d}", offset, limit, sent);
             request->send(response);
+            LOGF(DEBUG, "Free: %u  MaxAlloc: %u", ESP.getFreeHeap(), heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
         }
         else if (request->method() == 2) { // HTTP_POST
             auto& registry = ParameterRegistry::getInstance();
