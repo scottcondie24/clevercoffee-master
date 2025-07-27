@@ -544,8 +544,8 @@
     ]
   },
   {
-    "name": "Calibrate Flow",
-    "shortname": "calibrateFlow",
+    "name": "Test Flow Step",
+    "shortname": "testFlowStep",
     "temperature": 90,
     "scales": false,
     "flow": true,
@@ -585,8 +585,8 @@
     ]
   },
   {
-    "name": "Test Ramp Flow",
-    "shortname": "testRampFlow",
+    "name": "Test Flow Ramp",
+    "shortname": "testFlowRamp",
     "temperature": 90,
     "scales": false,
     "flow": true,

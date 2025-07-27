@@ -314,6 +314,7 @@ inline int writeSysParamsToMQTT(const bool continueOnError = true) {
                 }
 
                 LOGF(WARNING, "Parameter %s not found for MQTT topic %s, skipping", parameterId, mqttTopic);
+                ++mqttVarsIt;
                 continue;
             }
 
@@ -342,11 +343,13 @@ inline int writeSysParamsToMQTT(const bool continueOnError = true) {
                     }
 
                     LOGF(WARNING, "Skipping unknown parameter type for topic %s", mqttTopic);
+                    ++mqttVarsIt;
                     continue;
             }
 
             if (mqttLastSent[mqttTopic].compare(data) != 0) {
                 if (!mqtt_publish(mqttTopic, data, true)) {
+                    // if (!mqtt_publish(mqttTopic, value.c_str(), true)) {
                     errorState = mqtt.state();
 
                     if (!continueOnError) {

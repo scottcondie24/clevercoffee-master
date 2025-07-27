@@ -234,13 +234,13 @@ bool steamFirstON = false;
 PID bPID(&temperature, &pidOutput, &setpoint, aggKp, aggKi, aggKd, 1, DIRECT);
 
 // Profiles
-#include "brewProfiles.h"
 int currentProfileIndex = 0;
 int currentPhaseIndex = 0;
 float phaseTiming = 0;
 const char* profileName = nullptr;
 const char* phaseName = nullptr;
 double lastBrewSetpoint = 0.0;
+#include "brewProfiles.h"
 
 #include "brewHandler.h"
 #include "hotWaterHandler.h"
@@ -1230,10 +1230,12 @@ void setup() {
     }
 
     if (config.get<bool>("dimmer.enabled") && config.get<bool>("hardware.sensors.pressure.enabled")) {
-        parseDefaultProfiles();
-        populateProfileNames();
-        profilesCount = loadedProfiles.size();
-        LOGF(INFO, "Loaded %d brew profiles", profilesCount);
+        loadProfileMetadata(); // loads only names
+        // parseDefaultProfiles();
+        // populateProfileNames();
+        // profilesCount = loadedProfiles.size();
+        profilesCount = profileInfo.size();
+        LOGF(INFO, "Found %d brew profiles", profilesCount);
         currentProfileIndex = config.get<int>("dimmer.profile");
 
         if (currentProfileIndex >= profilesCount) {
@@ -1242,13 +1244,13 @@ void setup() {
 
         dimmerTypeHandler();
 
-        BrewProfile* profile = getProfile(currentProfileIndex);
+        // BrewProfile* profile = getProfile(currentProfileIndex);
+        selectProfileByName(profileInfo[currentProfileIndex].name);
+        if (currentProfile) {
+            profileName = currentProfile->name;
 
-        if (profile) {
-            profileName = profile->name;
-
-            if (profile->phaseCount > 0 && profile->phases) {
-                phaseName = profile->phases[currentPhaseIndex].name; // first phase name
+            if (currentProfile->phaseCount > 0 && currentProfile->phases) {
+                phaseName = currentProfile->phases[currentPhaseIndex].name; // first phase name
             }
             else {
                 phaseName = "No phases";

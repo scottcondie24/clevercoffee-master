@@ -3,8 +3,9 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
-std::vector<BrewProfile> loadedProfiles;
-std::vector<const char*> profileNames;
+BrewProfile* currentProfile = nullptr;
+// std::vector<const char*> profileNames;
+std::vector<BrewProfileInfo> profileInfo;
 
 size_t profilesCount = 0;
 
@@ -12,6 +13,9 @@ const char* exitTypeStrs[] = {"none", "flow_under", "flow_over", "pressure_under
 const char* transitionStrs[] = {"none", "smooth", "fast", "hold"};
 const char* pumpModeStrs[] = {"power", "pressure", "flow"};
 
+extern const char* phaseName;
+
+/*
 bool loadDefaultProfilesFromFS(JsonDocument& doc) {
     File file = LittleFS.open("/profiles/defaultProfiles.json", "r");
 
@@ -29,7 +33,8 @@ bool loadDefaultProfilesFromFS(JsonDocument& doc) {
 
     return true;
 }
-
+    */
+/*
 void populateProfileNames() {
     profileNames.clear();
     for (auto& profile : loadedProfiles) {
@@ -44,6 +49,7 @@ BrewProfile* getProfile(size_t i) {
 
     return nullptr;
 }
+*/
 
 ExitType parseExitType(const char* str) {
     for (int i = 0; i < sizeof(exitTypeStrs) / sizeof(exitTypeStrs[0]); ++i) {
@@ -78,6 +84,178 @@ PumpMode parsePumpMode(const char* str) {
     return POWER;
 }
 
+bool validatePhaseExitConditions(const BrewPhase& phase, const String& profileName, int phaseIndex) {
+    if (phase.seconds < 1.0) {
+        LOGF(WARNING, "Profile '%s' phase %d: requires 'seconds' >= 1.0", profileName.c_str(), phaseIndex);
+        return false;
+    }
+
+    switch (phase.exit_type) {
+        case EXIT_TYPE_NONE:
+            return true;
+
+        case EXIT_TYPE_PRESSURE_OVER:
+            if (phase.exit_pressure_over <= 0.0) {
+                LOGF(WARNING, "Profile '%s' phase %d: EXIT_TYPE_PRESSURE_OVER requires 'exit_pressure_over' > 0.0", profileName.c_str(), phaseIndex);
+                return false;
+            }
+            return true;
+
+        case EXIT_TYPE_PRESSURE_UNDER:
+            if (phase.exit_pressure_under <= 0.0) {
+                LOGF(WARNING, "Profile '%s' phase %d: EXIT_TYPE_PRESSURE_UNDER requires 'exit_pressure_under' > 0.0", profileName.c_str(), phaseIndex);
+                return false;
+            }
+            return true;
+
+        case EXIT_TYPE_FLOW_OVER:
+            if (phase.exit_flow_over <= 0.0) {
+                LOGF(WARNING, "Profile '%s' phase %d: EXIT_TYPE_FLOW_OVER requires 'exit_flow_over' > 0.0", profileName.c_str(), phaseIndex);
+                return false;
+            }
+            return true;
+
+        case EXIT_TYPE_FLOW_UNDER:
+            if (phase.exit_flow_under <= 0.0) {
+                LOGF(WARNING, "Profile '%s' phase %d: EXIT_TYPE_FLOW_UNDER requires 'exit_flow_under' > 0.0", profileName.c_str(), phaseIndex);
+                return false;
+            }
+            return true;
+    }
+
+    LOGF(WARNING, "Profile '%s' phase %d: Unknown exit type", profileName.c_str(), phaseIndex);
+    return false;
+}
+
+void loadProfileMetadata() {
+    File file = LittleFS.open("/profiles/defaultProfiles.json", "r");
+    if (!file) {
+        LOG(ERROR, "Could not open profile metadata");
+        return;
+    }
+
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, file);
+
+    file.close();
+
+    if (err) {
+        LOGF(ERROR, "Metadata parse failed: %s", err.c_str());
+        return;
+    }
+
+    for (JsonObject profileJson : doc.as<JsonArray>()) {
+        BrewProfileInfo info;
+        info.name = profileJson["name"].as<String>();
+        info.shortname = profileJson["shortname"].as<String>();
+        // description instead of shortname
+        profileInfo.push_back(info);
+    }
+}
+
+BrewProfile* loadProfileByName(const String& name) {
+    File file = LittleFS.open("/profiles/defaultProfiles.json", "r");
+
+    if (!file) {
+        return nullptr;
+    }
+
+    JsonDocument doc;
+    if (deserializeJson(doc, file)) {
+        return nullptr;
+    }
+
+    file.close();
+
+    for (JsonObject profileJson : doc.as<JsonArray>()) {
+        if (profileJson["name"] == name) {
+            // Parse just this one
+            BrewProfile* profile = new BrewProfile;
+            profile->name = strdup(profileJson["name"]);
+            profile->shortname = profileJson["shortname"];
+            profile->temperature = profileJson["temperature"];
+            profile->scales = profileJson["scales"];
+            profile->flow = profileJson["flow"];
+
+            JsonArray phasesJson = profileJson["phases"];
+            profile->phaseCount = phasesJson.size();
+            profile->phases = new BrewPhase[profile->phaseCount]; // allocate dynamically
+
+            int i = 0;
+
+            for (JsonObject phaseJson : phasesJson) {
+                BrewPhase& p = profile->phases[i++];
+                memset(&p, 0, sizeof(BrewPhase)); // zero everything by default
+
+                p.name = strdup(phaseJson["name"]);
+
+                // Optional fields
+                p.pressure = phaseJson["pressure"] | 0.0;
+                p.flow = phaseJson["flow"] | 0.0;
+                p.volume = phaseJson["volume"] | 0.0;
+                p.weight = phaseJson["weight"] | 0.0;
+                p.exit_flow_under = phaseJson["exit_flow_under"] | 0.0;
+                p.exit_flow_over = phaseJson["exit_flow_over"] | 0.0;
+                p.exit_pressure_over = phaseJson["exit_pressure_over"] | 0.0;
+                p.exit_pressure_under = phaseJson["exit_pressure_under"] | 0.0;
+                p.max_secondary = phaseJson["max_secondary"] | 0.0;
+                p.max_secondary_range = phaseJson["max_secondary_range"] | 0.0;
+                p.seconds = phaseJson["seconds"] | 0.0;
+
+                // Enums from string
+                const char* exitTypeStr = phaseJson["exit_type"] | "none";
+                const char* transitionStr = phaseJson["transition"] | "fast";
+                const char* pumpStr = phaseJson["pump"] | "pressure";
+
+                p.exit_type = parseExitType(exitTypeStr);
+                p.transition = parseTransition(transitionStr);
+                p.pump = parsePumpMode(pumpStr);
+
+                if (validatePhaseExitConditions(p, profile->name, i - 1)) {
+                    LOGF(INFO, "Phase %d: %s validated", i - 1, p.name);
+                }
+            }
+
+            return profile;
+        }
+    }
+
+    return nullptr;
+}
+
+void clearCurrentProfile() {
+    if (!currentProfile) {
+        return;
+    }
+
+    if (currentProfile->phases) {
+        for (int i = 0; i < currentProfile->phaseCount; ++i) {
+            free((void*)currentProfile->phases[i].name);
+        }
+
+        delete[] currentProfile->phases;
+    }
+
+    free((void*)currentProfile->name);
+    delete currentProfile;
+    currentProfile = nullptr;
+}
+
+void selectProfileByName(const String& name) {
+    clearCurrentProfile();
+    currentProfile = loadProfileByName(name);
+
+    if (!currentProfile) {
+        LOGF(WARNING, "Failed to load profile: %s", name.c_str());
+        return;
+    }
+
+    phaseName = currentProfile->phases[0].name;
+
+    LOGF(INFO, "Loaded profile: %s", currentProfile->name);
+}
+
+/*
 void parseDefaultProfiles() {
     JsonDocument doc;
 
@@ -206,3 +384,4 @@ void saveProfile(BrewPhase* phases, size_t count, Stream& out) {
 
     serializeJsonPretty(doc, out);
 }
+*/

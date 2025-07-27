@@ -79,10 +79,10 @@ void dimmerModeHandler() {
     previousError = 0;
 
     if (config.get<int>("dimmer.mode") == PROFILE) {
-        BrewProfile* profile = getProfile(currentProfileIndex);
+        // BrewProfile* profile = getProfile(currentProfileIndex);
 
-        if (profile) {
-            profileName = profile->name;
+        if (currentProfile) {
+            profileName = currentProfile->name;
             lastBrewSetpoint = brewSetpoint;
             LOGF(INFO, "Profile Index: %i -- Profile Name: %s", currentProfileIndex, profileName);
         }
@@ -120,7 +120,8 @@ void runProfile(int profileIndex) {
     static float filteredWeight = 0.0;
     static bool phaseReset = false;
 
-    BrewProfile* profile = getProfile(profileIndex);
+    // BrewProfile* profile = getProfile(profileIndex);
+    // BrewProfile* profile = currentProfile;
 
     if (startProfile) {
         startProfile = false;
@@ -132,11 +133,11 @@ void runProfile(int profileIndex) {
         lastSetFlow = 0.0;
         phaseTiming = 0;
         phaseReset = true;
-        LOGF(DEBUG, "Running profile: %s\n", profile->name);
+        LOGF(DEBUG, "Running profile: %s\n", currentProfile->name);
     }
 
-    while (currentPhaseIndex < profile->phaseCount) {
-        BrewPhase& phase = profile->phases[currentPhaseIndex];
+    while (currentPhaseIndex < currentProfile->phaseCount) {
+        BrewPhase& phase = currentProfile->phases[currentPhaseIndex];
         phaseName = phase.name;
 
         bool exitReached = false;
@@ -179,9 +180,9 @@ void runProfile(int profileIndex) {
             lastBrewWeight = currBrewWeight;
             filteredWeight = lastBrewWeight;
 
-            if (currentPhaseIndex < profile->phaseCount) {
+            if (currentPhaseIndex < currentProfile->phaseCount) {
                 // use the profile->phase method as currentPhaseIndex has been incremented
-                LOGF(DEBUG, "Moving to Phase %d: %s for %.1f seconds", currentPhaseIndex, profile->phases[currentPhaseIndex].name, profile->phases[currentPhaseIndex].seconds);
+                LOGF(DEBUG, "Moving to Phase %d: %s for %.1f seconds", currentPhaseIndex, currentProfile->phases[currentPhaseIndex].name, currentProfile->phases[currentPhaseIndex].seconds);
             }
             else {
                 brewProfileComplete = true;
@@ -195,11 +196,11 @@ void runProfile(int profileIndex) {
 
     // Control logic based on phase settings
     // check if still in phases, otherwise skip control
-    if (currentPhaseIndex >= profile->phaseCount) {
+    if (currentPhaseIndex >= currentProfile->phaseCount) {
         return;
     }
 
-    BrewPhase& phase = profile->phases[currentPhaseIndex];
+    BrewPhase& phase = currentProfile->phases[currentPhaseIndex];
 
     if (phaseReset) {
         LOGF(DEBUG, "Phase %s: exit_type=%d, flow_over=%.2f, pressure_over=%.2f, for %.1f seconds", phase.name, phase.exit_type, phase.exit_flow_over, phase.exit_pressure_over, phase.seconds);
@@ -332,8 +333,8 @@ void loopPump() {
         static float inputKp = 0.0;
         static float inputKi = 0.0;
         static float inputKd = 0.0;
-        static int lastDimmerMode = 0;
-        static int lastDimmerType = 0;
+        static int lastDimmerMode = config.get<int>("dimmer.mode");
+        static int lastDimmerType = config.get<int>("dimmer.type");
         static float maxLoggedPressure = 0.0;
 
         // force back to POWER control if pressure sensor is disabled
@@ -341,8 +342,12 @@ void loopPump() {
             config.set<int>("dimmer.mode", POWER);
         }
 
-        if ((config.get<int>("dimmer.mode") != lastDimmerMode) || (config.get<int>("dimmer.profile") != currentProfileIndex)) {
+        if (config.get<int>("dimmer.profile") != currentProfileIndex) {
             currentProfileIndex = config.get<int>("dimmer.profile");
+            selectProfileByName(profileInfo[currentProfileIndex].name);
+            dimmerModeHandler();
+        }
+        else if (config.get<int>("dimmer.mode") != lastDimmerMode) {
             lastDimmerMode = config.get<int>("dimmer.mode");
             dimmerModeHandler();
         }

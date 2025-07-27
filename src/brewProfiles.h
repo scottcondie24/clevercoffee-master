@@ -48,17 +48,27 @@ typedef struct {
         bool flow;
 } BrewProfile;
 
+struct BrewProfileInfo {
+        String name;
+        String shortname;
+        // description
+};
+
 // converting to JSON for profiles
 
-extern std::vector<BrewProfile> loadedProfiles;
+extern BrewProfile* currentProfile;
 extern size_t profilesCount;
+extern std::vector<BrewProfileInfo> profileInfo;
 
-void populateProfileNames();
-BrewProfile* getProfile(size_t i);
+// void populateProfileNames();
+// BrewProfile* getProfile(size_t i);
 ExitType parseExitType(const char* str);
 TransitionType parseTransition(const char* str);
 PumpMode parsePump(const char* str);
 
-void parseDefaultProfiles();
-bool loadProfile(const char* json, BrewPhase* phases, size_t maxPhases, size_t& outCount);
-void saveProfile(BrewPhase* phases, size_t count, Stream& out);
+void loadProfileMetadata();
+void selectProfileByName(const String& name);
+
+// void parseDefaultProfiles();
+// bool loadProfile(const char* json, BrewPhase* phases, size_t maxPhases, size_t& outCount);
+// void saveProfile(BrewPhase* phases, size_t count, Stream& out);
