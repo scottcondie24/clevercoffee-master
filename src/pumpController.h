@@ -316,7 +316,11 @@ void runProfile(int profileIndex) {
 }
 
 void loopPump() {
-    if (!config.get<bool>("dimmer.enabled") || !pumpRelay) {
+    if (!pumpRelay) {
+        return;
+    }
+
+    if (!config.get<bool>("dimmer.enabled") || pumpRelay->getType() == PumpControlType::RELAY) {
         return;
     }
 
@@ -341,15 +345,16 @@ void loopPump() {
         if (!config.get<bool>("hardware.sensors.pressure.enabled")) {
             config.set<int>("dimmer.mode", POWER);
         }
-
-        if (config.get<int>("dimmer.profile") != currentProfileIndex) {
-            currentProfileIndex = config.get<int>("dimmer.profile");
-            selectProfileByName(profileInfo[currentProfileIndex].name);
-            dimmerModeHandler();
-        }
-        else if (config.get<int>("dimmer.mode") != lastDimmerMode) {
-            lastDimmerMode = config.get<int>("dimmer.mode");
-            dimmerModeHandler();
+        else {
+            if (config.get<int>("dimmer.profile") != currentProfileIndex) {
+                currentProfileIndex = config.get<int>("dimmer.profile");
+                selectProfileByName(profileInfo[currentProfileIndex].name);
+                dimmerModeHandler();
+            }
+            else if (config.get<int>("dimmer.mode") != lastDimmerMode) {
+                lastDimmerMode = config.get<int>("dimmer.mode");
+                dimmerModeHandler();
+            }
         }
 
         if (config.get<int>("dimmer.type") != lastDimmerType) {

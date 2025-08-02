@@ -323,7 +323,13 @@ inline bool brew() {
                 pumpRelay->on();
                 debugPumpState("BrewRunning", "on");
 
-                if (currBrewTime > totalTargetBrewTime && brewByTimeEnabled) {
+                if (config.get<int>("dimmer.mode") == 3) { // if using a profile ignore the standard brew triggers
+                    if (brewProfileComplete) {
+                        LOG(INFO, "Brew profile finished");
+                        currBrewState = kBrewFinished;
+                    }
+                }
+                else if (currBrewTime > totalTargetBrewTime && brewByTimeEnabled) {
                     LOG(INFO, "Brew reached time target");
                     currBrewState = kBrewFinished;
                 }

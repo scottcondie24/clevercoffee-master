@@ -30,19 +30,56 @@ void PumpDimmer::begin() {
     unsigned long now = 0;
     float testHz;
     _hz = 50; // default
+    const unsigned long timeout_us = 50000;
+    unsigned long start = micros();
+    bool timedOut = false;
 
     for (int i = 0; i < 5; i++) {
-        while (!_zc.read())
-            ;
+        start = micros();
+
+        while (!_zc.read()) {
+            if (micros() - start > timeout_us) {
+                timedOut = true;
+                break;
+            }
+        }
+
+        if (timedOut) {
+            continue;
+        }
+
         _lastZC = micros();
         delay(5);
-        while (_zc.read())
-            ;
+        start = micros();
+
+        while (_zc.read()) {
+            if (micros() - start > timeout_us) {
+                timedOut = true;
+                break;
+            }
+        }
+
+        if (timedOut) {
+            continue;
+        }
+
         delay(5);
-        while (!_zc.read())
-            ;
+        start = micros();
+
+        while (!_zc.read()) {
+            if (micros() - start > timeout_us) {
+                timedOut = true;
+                break;
+            }
+        }
+
+        if (timedOut) {
+            continue;
+        }
+
         now = micros();
         testHz = 1000000.0f / (float)(now - _lastZC);
+
         if (testHz > 48 && testHz < 52) {
             _hz = testHz;
             break;
@@ -51,18 +88,33 @@ void PumpDimmer::begin() {
             _hz = testHz;
             break;
         }
-        while (_zc.read())
-            ;
+
+        start = micros();
+
+        while (_zc.read()) {
+            if (micros() - start > timeout_us) {
+                timedOut = true;
+                break;
+            }
+        }
+
+        if (timedOut) {
+            continue;
+        }
+
         delay(5);
     }
 
     if (_hz > 55.0f && adjusted == false) {
+
         for (int i = 0; i < 9; i++) {
             delayLowLut[i] = (unsigned int)(delayLowLut[i] * 0.8333f);
         }
+
         for (int i = 0; i < 21; i++) {
             delayHighLut[i] = (unsigned int)(delayHighLut[i] * 0.8333f);
         }
+
         adjusted = true;
     }
 
@@ -126,6 +178,7 @@ int PumpDimmer::getInterpolatedDelay(float powerPercent) {
 
 void PumpDimmer::setPower(int power) {
     _power = constrain((int)power, 0, 100);
+
     if (_method == ControlMethod::PHASE) {
         float pressureScaler = _pressure * 6.0f;
         _scaledPower = pressureScaler + (100 - pressureScaler) * (_power * 0.01f);
