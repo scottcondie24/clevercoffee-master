@@ -12,7 +12,10 @@
             <div class="col-md-5 mb-4">
               <div><strong>Control Method:</strong> <span id="controlMethod">--</span></div>
               <div><strong>Profile:</strong> <span id="profileName">--</span></div>
+              <div><strong>Profile Description:</strong> <span id="profileDesc">--</span></div>
               <div><strong>Phase:</strong> <span id="phaseName">--</span></div>
+              <div><strong>Phase Description:</strong> <span id="phaseDesc">--</span></div>
+              <div><strong>Auto Stop:</strong> <span id="autoStop">--</span></div>
             </div>
           </div>
         </div>
@@ -278,6 +281,23 @@
       }
     });
 
+    eventSource.addEventListener("brew_meta", (event) => {
+      try {
+        const json = JSON.parse(event.data);
+        
+        // Update UI elements
+        if (json.control) document.getElementById("controlMethod").textContent = json.control;
+        if (json.profile) document.getElementById("profileName").textContent = json.profile;
+        if (json.profileDesc) document.getElementById("profileDesc").textContent = json.profileDesc;
+        if (json.phase) document.getElementById("phaseName").textContent = json.phase;
+        if (json.phaseDesc) document.getElementById("phaseDesc").textContent = json.phaseDesc;
+        if (json.autoStop) document.getElementById("autoStop").textContent = json.autoStop;
+
+      } catch (err) {
+        console.warn("Bad JSON:", event.data);
+      }
+    });
+
     eventSource.addEventListener("brew_event", (event) => {
       if (!isBrewing) return;
 
@@ -296,11 +316,6 @@
         if (data[0].length > 1000) {
           for (let i = 0; i < data.length; i++) data[i].shift();
         }
-
-        // Update UI elements
-        if (json.control) document.getElementById("controlMethod").textContent = json.control;
-        if (json.profile) document.getElementById("profileName").textContent = json.profile;
-        if (json.phase) document.getElementById("phaseName").textContent = json.phase;
         
         //console.log("data before update", JSON.stringify(data));
         chart.setData(data);

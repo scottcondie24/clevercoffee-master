@@ -51,8 +51,7 @@ const char* switchModes[2] = {"Normally Open", "Normally Closed"};
 const char* relayTriggerTypes[2] = {"Low Trigger", "High Trigger"};
 const char* dimmerTypes[2] = {"Pulse Skip Modulation", "Phase"};
 const char* dimmerModes[4] = {"Power", "Pressure", "Flow", "Profile"};
-const char* profileSelector[12] = {"Spring Lever", "Adaptive",          "Londinium R24",  "Londinium Vectis", "Londinium R24 Pressure Only", "Londinium Vectis Pressure Only", "Light Roast", "Six Bar Espresso",
-                                   "Gentle Bloom", "Pressurized Bloom", "Test Flow Step", "Test Flow Ramp"};
+const char* profileSelector[10] = {"Spring Lever", "Adaptive", "Londinium R24", "Londinium Vectis", "Light Roast", "Six Bar Espresso", "Gentle Bloom", "Pressurized Bloom", "Test Flow Step", "Test Flow Ramp"};
 
 void ParameterRegistry::initialize(Config& config) {
     if (_ready) {
@@ -492,7 +491,7 @@ void ParameterRegistry::initialize(Config& config) {
         1412,
         nullptr,
         profileSelector,
-        12,
+        10,
         "Profile to control the pump during brew",
         [&config] { return config.get<bool>("dimmer.enabled") && config.get<bool>("hardware.sensors.pressure.enabled"); }
     );

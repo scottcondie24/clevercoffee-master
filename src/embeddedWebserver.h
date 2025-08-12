@@ -611,6 +611,8 @@ inline void serverSetup() {
         }
 
         client->send("hello", nullptr, millis(), 10000);
+
+        updateMetadata = true;
     });
 
     server.addHandler(&events);
@@ -663,7 +665,7 @@ inline void sendTempEvent(const double currentTemp, const double targetTemp, con
     events.send(getTempString().c_str(), "new_temps", millis());
 }
 
-void sendBrewEvent(float time, float inputPressure, float setPressure, float pumpFlowRate, float setPumpFlowRate, float currBrewWeight, int dimmerPower, String control, String profile, String phase) {
+void sendBrewEvent(float time, float inputPressure, float setPressure, float pumpFlowRate, float setPumpFlowRate, float currBrewWeight, int dimmerPower) {
     JsonDocument doc;
 
     doc["currBrewTime"] = time;
@@ -673,14 +675,28 @@ void sendBrewEvent(float time, float inputPressure, float setPressure, float pum
     doc["setPumpFlowRate"] = setPumpFlowRate;
     doc["currBrewWeight"] = currBrewWeight;
     doc["dimmerPower"] = dimmerPower;
-    doc["control"] = control;
-    doc["profile"] = profile;
-    doc["phase"] = phase;
 
     String jsonBrew;
     serializeJson(doc, jsonBrew);
 
     events.send(jsonBrew.c_str(), "brew_event", millis());
+    // LOGF(DEBUG, "%s", jsonTemps.c_str());
+}
+
+void sendBrewMetadata(String profile, String phase, String profileDesc, String phaseDesc, String control, String autoStop) {
+    JsonDocument doc;
+
+    doc["profile"] = profile;
+    doc["phase"] = phase;
+    doc["profileDesc"] = profileDesc;
+    doc["phaseDesc"] = phaseDesc;
+    doc["control"] = control;
+    doc["autoStop"] = autoStop;
+
+    String jsonBrewMeta;
+    serializeJson(doc, jsonBrewMeta);
+
+    events.send(jsonBrewMeta.c_str(), "brew_meta", millis());
     // LOGF(DEBUG, "%s", jsonTemps.c_str());
 }
 

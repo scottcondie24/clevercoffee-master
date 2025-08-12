@@ -238,7 +238,10 @@ int currentProfileIndex = 0;
 int currentPhaseIndex = 0;
 float phaseTiming = 0;
 const char* profileName = nullptr;
+const char* profileDescription = nullptr;
 const char* phaseName = nullptr;
+const char* phaseDescription = nullptr;
+boolean autoStop = false;
 double lastBrewSetpoint = 0.0;
 #include "brewProfiles.h"
 
@@ -1248,13 +1251,19 @@ void setup() {
         selectProfileByName(profileInfo[currentProfileIndex].name);
         if (currentProfile) {
             profileName = currentProfile->name;
+            profileDescription = currentProfile->description;
+            autoStop = currentProfile->stop;
 
             if (currentProfile->phaseCount > 0 && currentProfile->phases) {
-                phaseName = currentProfile->phases[currentPhaseIndex].name; // first phase name
+                phaseName = currentProfile->phases[currentPhaseIndex].name;               // first phase name
+                phaseDescription = currentProfile->phases[currentPhaseIndex].description; // first phase description
             }
             else {
                 phaseName = "No phases";
+                phaseDescription = " ";
             }
+
+            updateMetadata = true;
         }
         else {
             LOG(WARNING, "Profile not found");
@@ -1262,6 +1271,7 @@ void setup() {
     }
     else {
         config.set<int>("dimmer.mode", POWER);
+        updateMetadata = true;
 
         if (!config.save()) {
             LOG(ERROR, "Failed to save config to filesystem!");
@@ -1374,10 +1384,27 @@ void loopPid() {
 
     websiteUpdateRunning = false;
 
+    if (updateMetadata) {
+        if (pumpRelay->getType() == PumpControlType::DIMMER && config.get<int>("dimmer.mode") == PROFILE) {
+            if (machineState == kBrew) {
+                sendBrewMetadata(profileName, phaseName, profileDescription, phaseDescription, dimmerModes[pumpControlMode], autoStop ? "true" : "false");
+            }
+            else {
+                sendBrewMetadata(profileName, " ", profileDescription, " ", dimmerModes[pumpControlMode], autoStop ? "true" : "false");
+            }
+        }
+        else {
+            sendBrewMetadata(" ", " ", " ", " ", dimmerModes[pumpControlMode], " ");
+        }
+
+        updateMetadata = false;
+    }
+
     if ((machineState == kBrew) && (lastmachinestatehtml != kBrew)) {
         startBrewEvent();
         lastmachinestatehtml = machineState;
     }
+
     if ((machineState != kBrew) && (lastmachinestatehtml == kBrew)) {
         stopBrewEvent();
         lastmachinestatehtml = machineState;
@@ -1386,23 +1413,16 @@ void loopPid() {
     if (pumpRelay->getType() == PumpControlType::DIMMER) {
         if (((millis() - lastBrewEvent) > brewEventInterval) && (machineState == kBrew) && (!mqttUpdateRunning && !hassioUpdateRunning && !displayBufferReady && !temperatureUpdateRunning)) {
             websiteUpdateRunning = true;
-            String tempProfile = " ";
-            String tempPhase = " ";
-
-            if (config.get<int>("dimmer.mode") == PROFILE) {
-                tempProfile = profileName;
-                tempPhase = phaseName;
-            }
 
             // send brew data to website endpoint
             if (pumpControlMode == FLOW) {
-                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, pumpFlowRate, setPumpFlowRate, currBrewWeight, dimmerPower, dimmerModes[pumpControlMode], tempProfile, tempPhase);
+                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, pumpFlowRate, setPumpFlowRate, currBrewWeight, dimmerPower);
             }
             else if (pumpControlMode == PRESSURE) {
-                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, setPressure, pumpFlowRate, 0.0, currBrewWeight, dimmerPower, dimmerModes[pumpControlMode], tempProfile, tempPhase);
+                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, setPressure, pumpFlowRate, 0.0, currBrewWeight, dimmerPower);
             }
             else {
-                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, pumpFlowRate, 0.0, currBrewWeight, dimmerPower, dimmerModes[pumpControlMode], tempProfile, tempPhase);
+                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, pumpFlowRate, 0.0, currBrewWeight, dimmerPower);
             }
 
             lastBrewEvent = millis();

@@ -27,6 +27,7 @@ typedef enum {
 
 typedef struct {
         const char* name;
+        const char* description;
         float pressure, flow, volume, weight;
         float exit_flow_under, exit_flow_over;
         float exit_pressure_over, exit_pressure_under;
@@ -39,29 +40,26 @@ typedef struct {
 
 typedef struct {
         const char* name;
-        const char* shortname;
+        const char* description;
         BrewPhase* phases;
         int phaseCount;
         float temperature;
         float time;
         bool scales;
         bool flow;
+        bool stop;
 } BrewProfile;
 
 struct BrewProfileInfo {
         String name;
-        String shortname;
-        // description
+        String description;
 };
-
-// converting to JSON for profiles
 
 extern BrewProfile* currentProfile;
 extern size_t profilesCount;
 extern std::vector<BrewProfileInfo> profileInfo;
 
 // void populateProfileNames();
-// BrewProfile* getProfile(size_t i);
 ExitType parseExitType(const char* str);
 TransitionType parseTransition(const char* str);
 PumpMode parsePump(const char* str);
@@ -69,6 +67,5 @@ PumpMode parsePump(const char* str);
 void loadProfileMetadata();
 void selectProfileByName(const String& name);
 
-// void parseDefaultProfiles();
 // bool loadProfile(const char* json, BrewPhase* phases, size_t maxPhases, size_t& outCount);
 // void saveProfile(BrewPhase* phases, size_t count, Stream& out);

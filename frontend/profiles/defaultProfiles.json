@@ -1,13 +1,15 @@
 [
   {
     "name": "Spring Lever",
-    "shortname": "springLever",
+    "description": "Fast fill, raise pressure then decline. Manual Stop",
     "temperature": 90,
     "scales": false,
     "flow": true,
+    "auto_stop": false,
     "phases": [
       {
-        "name": "infuse",
+        "name": "fill",
+        "description": "fill until pressure is over 4 bars",
         "flow": 8,
         "exit_pressure_over": 4,
         "seconds": 20,
@@ -17,6 +19,7 @@
       },
       {
         "name": "rise and hold",
+        "description": "rise to 8.6 bars for 4 seconds",
         "pressure": 8.6,
         "seconds": 4,
         "exit_type": "none",
@@ -25,6 +28,7 @@
       },
       {
         "name": "decline",
+        "description": "decline for 20 seconds down to 6 bar but limit flow to 1.5mL/s",
         "pressure": 6,
         "flow": 1.5,
         "max_secondary": 6,
@@ -36,6 +40,7 @@
       },
       {
         "name": "maintain flow",
+        "description": "maintain flow rate until manually stopped or 30 seconds",
         "flow": 1.5,
         "seconds": 30,
         "exit_type": "none",
@@ -46,13 +51,15 @@
   },
   {
     "name": "Adaptive",
-    "shortname": "adaptive",
+    "description": "Infuse at 3 bars then target high pressure but restrict maximum flow rate. Can tolerate a wide range of grind size so is ideal for dialling in new beans. Manual Stop",
     "temperature": 88,
     "scales": true,
     "flow": true,
+    "auto_stop": false,
     "phases": [
       {
         "name": "pause",
+        "description": "initial pause waiting for scales",
         "seconds": 1,
         "exit_type": "none",
         "transition": "fast",
@@ -60,6 +67,7 @@
       },
       {
         "name": "fill",
+        "description": "fill until pressure is over 3 bars",
         "flow": 8,
         "exit_pressure_over": 3,
         "weight": 5,
@@ -70,6 +78,7 @@
       },
       {
         "name": "infuse",
+        "description": "infuse at 3 bars until 4g or 12 seconds",
         "pressure": 3,
         "flow": 1.7,
         "weight": 4,
@@ -82,6 +91,7 @@
       },
       {
         "name": "rise and hold",
+        "description": "rise to 8.6 bars for 2 seconds",
         "pressure": 8.6,
         "seconds": 2,
         "exit_type": "none",
@@ -90,6 +100,7 @@
       },
       {
         "name": "pressure hold",
+        "description": "hold 8.6 bars until 1.7mL/s flow or 40 seconds",
         "pressure": 8.6,
         "flow": 1.7,
         "exit_flow_over": 1.7,
@@ -100,6 +111,7 @@
       },
       {
         "name": "maintain flow",
+        "description": "maintain flow of 1.7mL/s but limit maximum pressure until manually stopped",
         "flow": 1.7,
         "weight": 50,
         "max_secondary": 8.6,
@@ -113,13 +125,15 @@
   },
   {
     "name": "Londinium R24",
-    "shortname": "londiniumR",
+    "description": "Simulates a Londinium R24 spring lever machine. Fast fill, pressurized infusion until it starts to drip, then high pressure and decline until 38g out, Auto Stop",
     "temperature": 88,
     "scales": true,
     "flow": true,
+    "auto_stop": true,
     "phases": [
       {
         "name": "pause",
+        "description": "initial pause waiting for scales",
         "seconds": 1,
         "exit_type": "none",
         "transition": "fast",
@@ -127,6 +141,7 @@
       },
       {
         "name": "fill",
+        "description": "fill until pressure is over 2.5 bars",
         "flow": 12,
         "exit_pressure_over": 2.5,
         "weight": 5,
@@ -137,6 +152,7 @@
       },
       {
         "name": "infuse",
+        "description": "infuse at 3 bars until 4g out or 30 seconds",
         "pressure": 3,
         "flow": 1.7,
         "weight": 4,
@@ -147,6 +163,7 @@
       },
       {
         "name": "rise and hold",
+        "description": "rise to 8.6 bars for 2 seconds",
         "pressure": 8.6,
         "seconds": 2,
         "exit_type": "none",
@@ -155,6 +172,7 @@
       },
       {
         "name": "decline",
+        "description": "decline to 5 bars using weight or in 45 seconds",
         "pressure": 5,
         "weight": 36,
         "seconds": 45,
@@ -164,6 +182,7 @@
       },
       {
         "name": "end",
+        "description": "reduce flow until 38g or 5 seconds, auto stop",
         "flow": 0.1,
         "weight": 38,
         "max_secondary": 8,
@@ -177,13 +196,15 @@
   },
   {
     "name": "Londinium Vectis",
-    "shortname": "londiniumV",
+    "description": "Simulates a Londinium Vectis spring lever machine which has steam pressure infusion and a smaller spring than the R24. Fast fill, low pressure infusion until it starts to drip, then medium pressure and decline until 38g out, Auto Stop",
     "temperature": 88,
     "scales": true,
     "flow": true,
+    "auto_stop": true,
     "phases": [
       {
         "name": "pause",
+        "description": "initial pause waiting for scales",
         "seconds": 1,
         "exit_type": "none",
         "transition": "fast",
@@ -191,6 +212,7 @@
       },
       {
         "name": "fill",
+        "description": "fill until pressure is over 1 bar or 20 seconds",
         "flow": 12,
         "exit_pressure_over": 1,
         "weight": 5,
@@ -201,6 +223,7 @@
       },
       {
         "name": "infuse",
+        "description": "infuse at 1.2 bars until 4g out or 30 seconds",
         "pressure": 1.2,
         "flow": 1.7,
         "weight": 4,
@@ -211,6 +234,7 @@
       },
       {
         "name": "rise and hold",
+        "description": "rise to 6.5 bars for 2 seconds",
         "pressure": 6.5,
         "seconds": 2,
         "exit_type": "none",
@@ -219,6 +243,7 @@
       },
       {
         "name": "decline",
+        "description": "decline to 4 bars using weight or in 45 seconds",
         "pressure": 4,
         "weight": 36,
         "seconds": 45,
@@ -228,6 +253,7 @@
       },
       {
         "name": "end",
+        "description": "reduce flow until 38g or 5 seconds, auto stop",
         "flow": 0.1,
         "weight": 38,
         "seconds": 5,
@@ -238,137 +264,17 @@
     ]
   },
   {
-    "name": "Londinium R24 Pressure Only",
-    "shortname": "londiniumRPressure",
-    "temperature": 88,
-    "scales": true,
-    "flow": false,
-    "phases": [
-      {
-        "name": "pause",
-        "seconds": 1,
-        "exit_type": "none",
-        "transition": "fast",
-        "pump": "pressure"
-      },
-      {
-        "name": "fill",
-        "pressure": 3,
-        "weight": 5,
-        "exit_pressure_over": 2.5,
-        "seconds": 20,
-        "exit_type": "pressure_over",
-        "transition": "fast",
-        "pump": "pressure"
-      },
-      {
-        "name": "infuse",
-        "pressure": 3,
-        "weight": 4,
-        "seconds": 30,
-        "exit_type": "none",
-        "transition": "fast",
-        "pump": "pressure"
-      },
-      {
-        "name": "rise and hold",
-        "pressure": 8.6,
-        "seconds": 2,
-        "exit_type": "none",
-        "transition": "fast",
-        "pump": "pressure"
-      },
-      {
-        "name": "decline",
-        "pressure": 5,
-        "weight": 36,
-        "seconds": 45,
-        "exit_type": "none",
-        "transition": "smooth",
-        "pump": "pressure"
-      },
-      {
-        "name": "end",
-        "pressure": 0.1,
-        "weight": 38,
-        "seconds": 5,
-        "exit_type": "none",
-        "transition": "smooth",
-        "pump": "pressure"
-      }
-    ]
-  },
-  {
-    "name": "Londinium Vectis Pressure Only",
-    "shortname": "londiniumVPressure",
-    "temperature": 88,
-    "scales": true,
-    "flow": false,
-    "phases": [
-      {
-        "name": "pause",
-        "seconds": 1,
-        "exit_type": "none",
-        "transition": "fast",
-        "pump": "pressure"
-      },
-      {
-        "name": "fill",
-        "pressure": 3,
-        "weight": 5,
-        "exit_pressure_over": 1,
-        "seconds": 20,
-        "exit_type": "pressure_over",
-        "transition": "fast",
-        "pump": "pressure"
-      },
-      {
-        "name": "infuse",
-        "pressure": 1.2,
-        "weight": 4,
-        "seconds": 30,
-        "exit_type": "none",
-        "transition": "fast",
-        "pump": "pressure"
-      },
-      {
-        "name": "rise and hold",
-        "pressure": 6.5,
-        "seconds": 2,
-        "exit_type": "none",
-        "transition": "fast",
-        "pump": "pressure"
-      },
-      {
-        "name": "decline",
-        "pressure": 4,
-        "weight": 36,
-        "seconds": 45,
-        "exit_type": "none",
-        "transition": "smooth",
-        "pump": "pressure"
-      },
-      {
-        "name": "end",
-        "pressure": 0.1,
-        "weight": 38,
-        "seconds": 5,
-        "exit_type": "none",
-        "transition": "smooth",
-        "pump": "pressure"
-      }
-    ]
-  },
-  {
     "name": "Light Roast",
-    "shortname": "lightRoast",
+    "description": "3 bar then declining infusion, high pressure then fast extraction. Manual Stop",
     "temperature": 92,
     "scales": true,
     "flow": true,
+    "auto_stop": false,
     "phases": [
       {
         "name": "fill",
-        "pressure": 3.5,
+        "description": "fill until pressure is over 2.5 bars",
+        "pressure": 2.5,
         "exit_pressure_over": 3,
         "seconds": 12,
         "exit_type": "pressure_over",
@@ -377,6 +283,7 @@
       },
       {
         "name": "hold",
+        "description": "infuse at 3 bars until flow drops below 1mL/s or 12 seconds",
         "pressure": 3,
         "exit_flow_under": 1,
         "seconds": 12,
@@ -386,6 +293,7 @@
       },
       {
         "name": "decline",
+        "description": "reduce pressure to 1.5 bars until 4g out or 13 seconds",
         "pressure": 1.5,
         "weight": 4.0,
         "seconds": 13,
@@ -395,6 +303,7 @@
       },
       {
         "name": "pressure",
+        "description": "build to high pressure or 6 seconds",
         "pressure": 10,
         "exit_pressure_over": 8,
         "seconds": 6,
@@ -404,6 +313,7 @@
       },
       {
         "name": "extract",
+        "description": "ramp to 3.0mL/s over 30 seconds, manual stop",
         "flow": 3.0,
         "seconds": 30,
         "exit_type": "none",
@@ -414,13 +324,15 @@
   },
   {
     "name": "Six Bar Espresso",
-    "shortname": "sixBarEspresso",
+    "description": "Hold 6 bars for 15 seconds then decline at the end until 36g, Auto Stop",
     "temperature": 90,
     "scales": true,
     "flow": true,
+    "auto_stop": true,
     "phases": [
       {
         "name": "infuse",
+        "description": "fill until pressure is over 4 bars",
         "flow": 8,
         "exit_pressure_over": 4,
         "seconds": 20,
@@ -430,7 +342,9 @@
       },
       {
         "name": "rise and hold",
+        "description": "rise to 6 bars and hold for 15 seconds",
         "pressure": 6,
+        "weight": 36,
         "seconds": 15,
         "exit_type": "none",
         "transition": "fast",
@@ -438,6 +352,7 @@
       },
       {
         "name": "decline",
+        "description": "decline to 4 bars using weight or in 30 seconds, auto stop at 36g",
         "pressure": 4,
         "weight": 36,
         "exit_pressure_under": 4,
@@ -450,13 +365,15 @@
   },
   {
     "name": "Gentle Bloom",
-    "shortname": "gentleBloom",
+    "description": "Slow fill then long infusion, gentle ramp to 2.2mL/s then maintain flow rate. Manual Stop",
     "temperature": 92,
     "scales": false,
     "flow": true,
+    "auto_stop": false,
     "phases": [
       {
         "name": "infuse",
+        "description": "slow fill until pressure is over 1.3 bars",
         "flow": 4,
         "exit_pressure_over": 1.3,
         "seconds": 23,
@@ -466,6 +383,7 @@
       },
       {
         "name": "pause",
+        "description": "stop pump for 30 seconds to infuse",
         "seconds": 30,
         "exit_type": "none",
         "transition": "fast",
@@ -473,6 +391,7 @@
       },
       {
         "name": "ramp",
+        "description": "gentle ramp to 2.2mL/s over 5 seconds",
         "flow": 2.2,
         "seconds": 5,
         "exit_type": "none",
@@ -481,6 +400,7 @@
       },
       {
         "name": "flow",
+        "description": "maintain flow rate of 2.2mL/s for 40 seconds or until manually stopped",
         "flow": 2.2,
         "seconds": 40,
         "exit_type": "none",
@@ -491,13 +411,15 @@
   },
   {
     "name": "Pressurized Bloom",
-    "shortname": "pressurizedBloom",
+    "description": "3 bar infusion then 8.5 bar extraction, limiting flow to 3mL/s. Manual Stop",
     "temperature": 93,
     "scales": false,
     "flow": true,
+    "auto_stop": false,
     "phases": [
       {
         "name": "fill",
+        "description": "fill until pressure is over 2.5 bars",
         "flow": 8,
         "exit_pressure_over": 2.5,
         "seconds": 15,
@@ -507,6 +429,7 @@
       },
       {
         "name": "hold",
+        "description": "3 bars infusion for 12 seconds or until flow reduces below 0.9mL/s",
         "pressure": 3,
         "exit_flow_under": 0.9,
         "seconds": 12,
@@ -516,6 +439,7 @@
       },
       {
         "name": "pressure ramp",
+        "description": "ramp pressure to 8.5 bars over 5 seconds or until flow is over 3mL/s",
         "pressure": 8.5,
         "exit_flow_over": 3,
         "seconds": 5,
@@ -525,6 +449,7 @@
       },
       {
         "name": "pressure",
+        "description": "hold pressure at 8.5 bars until flow is over 3mL/s or 60 seconds",
         "pressure": 8.5,
         "flow": 3,
         "exit_flow_over": 3,
@@ -535,6 +460,7 @@
       },
       {
         "name": "flow limit",
+        "description": "hold flow at 3mL/s for 60 seconds until manually stopped",
         "flow": 3,
         "seconds": 60,
         "exit_type": "none",
@@ -545,13 +471,15 @@
   },
   {
     "name": "Test Flow Step",
-    "shortname": "testFlowStep",
+    "description": "Runs four steps of increasing flow rate for 8 seconds each. Combined total is 160g but the time to reach flow rates reduces the output a little, so expect 140-150g",
     "temperature": 90,
     "scales": false,
     "flow": true,
+    "auto_stop": true,
     "phases": [
       {
         "name": "2.0mL/s",
+        "description": "2.0mL/s for 8 seconds (16g)",
         "flow": 2,
         "seconds": 8,
         "exit_type": "none",
@@ -560,6 +488,7 @@
       },
       {
         "name": "4.0mL/s",
+        "description": "4.0mL/s for 8 seconds (32g)",
         "flow": 4,
         "seconds": 8,
         "exit_type": "none",
@@ -568,6 +497,7 @@
       },
       {
         "name": "6.0mL/s",
+        "description": "6.0mL/s for 8 seconds (48g)",
         "flow": 6,
         "seconds": 8,
         "exit_type": "none",
@@ -576,6 +506,7 @@
       },
       {
         "name": "8.0mL/s",
+        "description": "8.0mL/s for 8 seconds (64g)",
         "flow": 8,
         "seconds": 8,
         "exit_type": "none",
@@ -586,13 +517,15 @@
   },
   {
     "name": "Test Flow Ramp",
-    "shortname": "testFlowRamp",
+    "description": "Ramps flow up and down to test how well it follows a changing target. Combined total is 38g",
     "temperature": 90,
     "scales": false,
     "flow": true,
+    "auto_stop": true,
     "phases": [
       {
         "name": "increasing flow",
+        "description": "Increase from 0mL/s to 4mL/s over 4 seconds (8g)",
         "flow": 4,
         "seconds": 4,
         "exit_type": "none",
@@ -601,6 +534,7 @@
       },
       {
         "name": "decreasing flow",
+        "description": "Decrease from 4mL/s to 1mL/s over 4 seconds (7g)",
         "flow": 1,
         "seconds": 4,
         "exit_type": "none",
@@ -609,6 +543,7 @@
       },
       {
         "name": "increasing flow",
+        "description": "Increase from 1mL/s to 6mL/s over 4 seconds (11g)",
         "flow": 6,
         "seconds": 4,
         "exit_type": "none",
@@ -617,6 +552,7 @@
       },
       {
         "name": "decreasing flow",
+        "description": "Decrease from 6mL/s to 0mL/s over 4 seconds (12g)",
         "flow": 0,
         "seconds": 4,
         "exit_type": "none",

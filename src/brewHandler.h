@@ -341,10 +341,6 @@ inline bool brew() {
                         currBrewState = kBrewFinished;
                     }
                 }
-                else if (config.get<int>("dimmer.mode") == 3 && brewProfileComplete) {
-                    LOG(INFO, "Brew profile finished");
-                    currBrewState = kBrewFinished;
-                }
 
                 break;
             }
@@ -365,7 +361,7 @@ inline bool brew() {
                 if (scale && config.get<bool>("hardware.sensors.scale.enabled") && config.get<int>("hardware.sensors.scale.type") == 2 && config.get<bool>("display.blescale_brew_timer")) {
                     static_cast<BluetoothScale*>(scale)->stopTimer();
                 }
-            
+
                 break;
             }
 

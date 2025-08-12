@@ -12,9 +12,6 @@
  * deal with temperature changes in profiles
  * dynamic list of profiles, or block based on hardware config
  * lots of cleaning - check what variables are no longer needed etc
- * add 50/60hz measurement for phase dimmer map function
- * reduce phase dimmer max delay to suit flow
- * use config.set/config.get instead of global variables
  */
 
 unsigned long currentMillisPumpControl = 0;
@@ -50,6 +47,7 @@ float pumpIntegral = 0.0;
 float previousError = 0;
 bool startProfile = true;
 bool brewProfileComplete = false;
+bool updateMetadata = false;
 
 extern const char* dimmerModes[4];
 
@@ -83,12 +81,16 @@ void dimmerModeHandler() {
 
         if (currentProfile) {
             profileName = currentProfile->name;
+            profileDescription = currentProfile->description;
+            autoStop = currentProfile->stop;
             lastBrewSetpoint = brewSetpoint;
             LOGF(INFO, "Profile Index: %i -- Profile Name: %s", currentProfileIndex, profileName);
         }
         else {
             LOG(WARNING, "Profile is null in dimmerModeHandler");
             profileName = "Invalid profile";
+            profileDescription = "Invalid profile";
+            autoStop = false;
         }
     }
     else {
@@ -96,6 +98,8 @@ void dimmerModeHandler() {
             brewSetpoint = lastBrewSetpoint;
         }
     }
+
+    updateMetadata = true;
 }
 
 void dimmerTypeHandler() {
@@ -134,11 +138,13 @@ void runProfile(int profileIndex) {
         phaseTiming = 0;
         phaseReset = true;
         LOGF(DEBUG, "Running profile: %s\n", currentProfile->name);
+        updateMetadata = true;
     }
 
     while (currentPhaseIndex < currentProfile->phaseCount) {
         BrewPhase& phase = currentProfile->phases[currentPhaseIndex];
         phaseName = phase.name;
+        phaseDescription = phase.description;
 
         bool exitReached = false;
 
@@ -179,6 +185,7 @@ void runProfile(int profileIndex) {
             phaseReset = true;
             lastBrewWeight = currBrewWeight;
             filteredWeight = lastBrewWeight;
+            updateMetadata = true;
 
             if (currentPhaseIndex < currentProfile->phaseCount) {
                 // use the profile->phase method as currentPhaseIndex has been incremented
