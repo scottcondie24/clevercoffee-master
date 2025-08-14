@@ -12,6 +12,7 @@
 // Libraries & Dependencies
 #include "Logger.h"
 #include <ArduinoOTA.h>
+#include <ESP32Encoder.h>
 #include <LittleFS.h>
 #include <PID_v1.h>  // for PID calculation
 #include <U8g2lib.h> // i2c display
@@ -80,6 +81,9 @@ bool featureFullscreenHotWaterTimer = false;
 double postBrewTimerDuration = POST_BREW_TIMER_DURATION;
 bool featureHeatingLogo = false;
 
+// encoder menu
+int menuLevel = 0;
+
 // WiFi
 WiFiManager wm;
 constexpr unsigned long wifiConnectionDelay = WIFICONNECTIONDELAY;
@@ -134,6 +138,7 @@ Switch* powerSwitch = nullptr;
 Switch* brewSwitch = nullptr;
 Switch* steamSwitch = nullptr;
 Switch* hotWaterSwitch = nullptr;
+Switch* encoderSwitch = nullptr;
 
 TempSensor* tempSensor = nullptr;
 
@@ -203,6 +208,7 @@ bool steamFirstON = false;
 PID bPID(&temperature, &pidOutput, &setpoint, aggKp, aggKi, aggKd, 1, DIRECT);
 
 #include "brewHandler.h"
+#include "hardware/rotaryEncoder.h"
 #include "hotWaterHandler.h"
 
 // Other variables
@@ -986,6 +992,11 @@ void setup() {
         hotWaterSwitch = new IOSwitch(PIN_WATERSWITCH, GPIOPin::IN_HARDWARE, type, mode, mode);
     }
 
+    if (config.get<bool>("hardware.switches.encoder.enabled")) {
+        encoderSwitch = new IOSwitch(PIN_ROTARY_SW, GPIOPin::IN_PULLUP, Switch::TOGGLE, Switch::NORMALLY_CLOSED, Switch::NORMALLY_CLOSED);
+        initEncoder();
+    }
+
     if (config.get<bool>("hardware.leds.status.enabled")) {
         const bool inverted = config.get<bool>("hardware.leds.status.inverted");
         statusLedPin = new GPIOPin(PIN_STATUSLED, GPIOPin::OUT);
@@ -1339,6 +1350,7 @@ void loopPid() {
     handleMachineState();
     hotWaterHandler();
     valveSafetyShutdownCheck();
+    encoderHandler();
 
     if (config.get<bool>("hardware.switches.brew.enabled")) {
         shouldDisplayBrewTimer();

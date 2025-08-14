@@ -962,6 +962,15 @@ void ParameterRegistry::initialize(Config& config) {
         "Electrical configuration of water switch<br>Normally Open is active high<br>Normally Closed is active low"
     );
 
+    addBoolConfigParam(
+        "hardware.switches.encoder.enabled",
+        "Enable Encoder",
+        sHardwareSwitchSection,
+        2241,
+        nullptr,
+        "Enable encoder with button"
+    );
+
     // LEDs
     addBoolConfigParam(
         "hardware.leds.status.enabled",
