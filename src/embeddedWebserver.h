@@ -423,8 +423,16 @@ inline void serverSetup() {
     });
 
     server.on("/temperatures", HTTP_GET, [](AsyncWebServerRequest* request) {
-        const String json = getTempString();
-        request->send(200, "application/json", json);
+        AsyncResponseStream* response = request->beginResponseStream("application/json");
+        response->print('{');
+        response->print("\"currentTemp\":");
+        response->print(curTemp, 6);
+        response->print(",\"targetTemp\":");
+        response->print(tTemp, 6);
+        response->print(",\"heaterPower\":");
+        response->print(hPower, 6);
+        response->print('}');
+        request->send(response);
     });
 
     // TODO: could send values also chunked and without json (but needs three
