@@ -12,6 +12,7 @@
 // Libraries & Dependencies
 #include "Logger.h"
 #include <ArduinoOTA.h>
+#include <ESPmDNS.h>
 #include <LittleFS.h>
 #include <PID_v1.h>  // for PID calculation
 #include <U8g2lib.h> // i2c display
@@ -103,14 +104,16 @@ bool featureHeatingLogo = false;
 WiFiManager wm;
 constexpr unsigned long wifiConnectionDelay = WIFICONNECTIONDELAY;
 constexpr unsigned int maxWifiReconnects = MAXWIFIRECONNECTS;
-String hostname = "silvia";
+static String hostname = "silvia";
 auto pass = WM_PASS;
 unsigned long lastWifiConnectionAttempt = millis();
 unsigned int wifiReconnects = 0; // actual number of reconnects
 bool restartAfterAP = false;
+static bool mdnsStarted = false;
 
 // OTA
 String otaPass;
+static bool otaStarted = false;
 
 // Pressure sensor
 float inputPressure = 0;
@@ -161,7 +164,7 @@ TempSensor* tempSensor = nullptr;
 
 // Method forward declarations
 void setSteamMode(bool steamMode);
-void setPIDTunings(bool usePonM);
+void setPIDTunings();
 void setBDPIDTunings();
 void setRuntimePidState(bool enabled);
 void loopcalibrate();
@@ -176,6 +179,8 @@ int writeSysParamsToMQTT(bool continueOnError);
 void updateStandbyTimer();
 void resetStandbyTimer();
 void wiFiReset();
+void startMdnsOta();
+void stopMdnsOta();
 
 // debugging water pump actions
 String hotWaterStateDebug = "off";
@@ -354,6 +359,7 @@ void checkWifi() {
             if (wifiConnectCounter == 1) {
                 wifiReconnects++;
                 LOGF(INFO, "Attempting WIFI (re-)connection: %i", wifiReconnects);
+                stopMdnsOta();
                 wm.disconnect();
                 WiFi.begin();
             }
@@ -788,6 +794,21 @@ void wiFiSetup() {
     wm.setDisableConfigPortal(true); // disables config portal on wifi save
     bool wifiConnected = wm.autoConnect(hostname.c_str(), pass);
 
+    WiFi.onEvent([](WiFiEvent_t e, WiFiEventInfo_t) {
+        switch (e) {
+            case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+                startMdnsOta();
+                break;
+            case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+            case ARDUINO_EVENT_WIFI_AP_START:
+            case ARDUINO_EVENT_WIFI_AP_STOP:
+                stopMdnsOta();
+                break;
+            default:
+                break;
+        }
+    });
+
     if (!wifiConnected) {
         wm.setConfigPortalTimeout(1);  // prompt config portal to update password
         wifiConnected = wm.startConfigPortal(hostname.c_str(), pass);
@@ -1012,9 +1033,6 @@ void setup() {
         // OTA Updates
         if (WiFi.status() == WL_CONNECTED) {
             otaPass = config.get<String>("system.ota_password");
-            ArduinoOTA.setHostname(hostname.c_str()); //  Device name for OTA
-            ArduinoOTA.setPassword(otaPass.c_str());  //  Password for OTA
-            ArduinoOTA.begin();
         }
 
         setupMqtt();
@@ -1258,18 +1276,7 @@ void loopPid() {
 
         ArduinoOTA.handle(); // For OTA
 
-        // Disable interrupt if OTA is starting, otherwise it will not work
-        ArduinoOTA.onStart([]() {
-            disableTimer1();
-            heaterRelay->off();
-        });
-
-        ArduinoOTA.onError([](ota_error_t error) { enableTimer1(); });
-
-        // Enable interrupts if OTA is finished
-        ArduinoOTA.onEnd([]() { enableTimer1(); });
-
-        wifiReconnects = 0; // reset wifi reconnects if connected
+        wifiReconnects = 0;  // reset wifi reconnects if connected
     }
     else {
         wifiWasConnected = false;
@@ -1395,7 +1402,7 @@ void loopPid() {
 
     // Regular PID operation
     if (machineState == kPidNormal) {
-        setPIDTunings(usePonM);
+        setPIDTunings();
     }
 
     // Brew PID
@@ -1422,7 +1429,7 @@ void loopPid() {
                 setBDPIDTunings();
             }
             else {
-                setPIDTunings(usePonM);
+                setPIDTunings();
             }
         }
     }
@@ -1552,7 +1559,7 @@ void performSafeShutdown() {
     LOG(INFO, "Safe shutdown, all relays turned off");
 }
 
-void setPIDTunings(const bool usePonM) {
+void setPIDTunings() {
     // Prevent overwriting of brewdetection values
     // calc ki, kd
     if (aggTn != 0) {
@@ -1596,4 +1603,49 @@ void setBDPIDTunings() {
     }
 
     bPID.SetTunings(aggbKp, aggbKi, aggbKd, 1);
+}
+
+void configureArduinoOta() {
+    ArduinoOTA.setHostname(hostname.c_str()); //  Device name for OTA
+    ArduinoOTA.setPassword(otaPass.c_str());  //  Password for OTA
+
+    // Disable interrupt if OTA is starting, otherwise it will not work
+    ArduinoOTA.onStart([]() {
+        disableTimer1();
+        heaterRelay->off();
+    });
+
+    ArduinoOTA.onError([](ota_error_t error) { enableTimer1(); });
+
+    // Enable interrupts if OTA is finished
+    ArduinoOTA.onEnd([]() { enableTimer1(); });
+}
+
+void startMdnsOta() {
+    if (!mdnsStarted) {
+        if (MDNS.begin(hostname.c_str())) {
+            mdnsStarted = true;
+        }
+        else {
+            LOG(ERROR, "Error setting up MDNS responder!");
+        }
+    }
+
+    if (!otaStarted) {
+        configureArduinoOta();
+        ArduinoOTA.begin();
+        otaStarted = true;
+    }
+}
+
+void stopMdnsOta() {
+    if (otaStarted) {
+        ArduinoOTA.end();
+        otaStarted = false;
+    }
+
+    if (mdnsStarted) {
+        MDNS.end();
+        mdnsStarted = false;
+    }
 }
