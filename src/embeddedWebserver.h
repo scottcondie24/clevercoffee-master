@@ -426,41 +426,55 @@ inline void serverSetup() {
         AsyncResponseStream* response = request->beginResponseStream("application/json");
         response->print('{');
         response->print("\"currentTemp\":");
-        response->print(curTemp, 6);
+        response->print(curTemp, 2);
         response->print(",\"targetTemp\":");
-        response->print(tTemp, 6);
+        response->print(tTemp, 2);
         response->print(",\"heaterPower\":");
-        response->print(hPower, 6);
+        response->print(hPower, 2);
         response->print('}');
         request->send(response);
     });
 
-    // TODO: could send values also chunked and without json (but needs three
-    // endpoints then?)
-    // https://stackoverflow.com/questions/61559745/espasyncwebserver-serve-large-array-from-ram
     server.on("/timeseries", HTTP_GET, [](AsyncWebServerRequest* request) {
         AsyncResponseStream* response = request->beginResponseStream("application/json");
         response->addHeader("Connection", "close"); // Force connection close
 
-        JsonDocument doc;
+        response->print('{');
 
-        // for each value in mem history array, add json array element
-        auto currentTemps = doc["currentTemps"].to<JsonArray>();
-        auto targetTemps = doc["targetTemps"].to<JsonArray>();
-        auto heaterPowers = doc["heaterPowers"].to<JsonArray>();
+        response->print("\"currentTemps\":[");
+        bool first = true;
 
-        // go through history values backwards starting from currentIndex and
-        // wrap around beginning to include valueCount many values
         for (int i = mod(historyCurrentIndex - historyValueCount, HISTORY_LENGTH); i != mod(historyCurrentIndex, HISTORY_LENGTH); i = mod(i + 1, HISTORY_LENGTH)) {
-            currentTemps.add(round2(tempHistory[0][i]));
-            targetTemps.add(round2(tempHistory[1][i]));
-            heaterPowers.add(round2(tempHistory[2][i]));
+            if (!first) response->print(',');
+            first = false;
+            response->print(round2(tempHistory[0][i]), 2);
         }
 
-        String out;
-        out.reserve(measureJson(doc) + 16);
-        serializeJson(doc, out);
-        request->send(200, "application/json", out);
+        response->print("],");
+
+        response->print("\"targetTemps\":[");
+        first = true;
+
+        for (int i = mod(historyCurrentIndex - historyValueCount, HISTORY_LENGTH); i != mod(historyCurrentIndex, HISTORY_LENGTH); i = mod(i + 1, HISTORY_LENGTH)) {
+            if (!first) response->print(',');
+            first = false;
+            response->print(round2(tempHistory[1][i]), 2);
+        }
+
+        response->print("],");
+
+        response->print("\"heaterPowers\":[");
+        first = true;
+
+        for (int i = mod(historyCurrentIndex - historyValueCount, HISTORY_LENGTH); i != mod(historyCurrentIndex, HISTORY_LENGTH); i = mod(i + 1, HISTORY_LENGTH)) {
+            if (!first) response->print(',');
+            first = false;
+            response->print(round2(tempHistory[2][i]), 2);
+        }
+
+        response->print("]}");
+
+        request->send(response);
     });
 
     server.on("/wifireset", HTTP_POST, [](AsyncWebServerRequest* request) {

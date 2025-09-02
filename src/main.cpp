@@ -778,6 +778,21 @@ inline std::vector<const char*> getMachineStateOptions() {
  * @brief Set up internal WiFi hardware
  */
 void wiFiSetup() {
+    WiFi.onEvent([](WiFiEvent_t e, WiFiEventInfo_t) {
+        switch (e) {
+            case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+                startMdnsOta();
+                break;
+            case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+            case ARDUINO_EVENT_WIFI_AP_START:
+            case ARDUINO_EVENT_WIFI_AP_STOP:
+                stopMdnsOta();
+                break;
+            default:
+                break;
+        }
+    });
+
     wm.setCleanConnect(true);
     wm.setConnectTimeout(10); // using 10s to connect to WLAN, 5s is sometimes too short!
     wm.setBreakAfterConfig(true);
@@ -793,21 +808,6 @@ void wiFiSetup() {
     wm.setEnableConfigPortal(false); // doesnt start config portal within autoconnect
     wm.setDisableConfigPortal(true); // disables config portal on wifi save
     bool wifiConnected = wm.autoConnect(hostname.c_str(), pass);
-
-    WiFi.onEvent([](WiFiEvent_t e, WiFiEventInfo_t) {
-        switch (e) {
-            case ARDUINO_EVENT_WIFI_STA_GOT_IP:
-                startMdnsOta();
-                break;
-            case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
-            case ARDUINO_EVENT_WIFI_AP_START:
-            case ARDUINO_EVENT_WIFI_AP_STOP:
-                stopMdnsOta();
-                break;
-            default:
-                break;
-        }
-    });
 
     if (!wifiConnected) {
         wm.setConfigPortalTimeout(1);  // prompt config portal to update password
@@ -1025,12 +1025,6 @@ void setup() {
     if (!config.get<bool>("system.offline_mode")) { // WiFi Mode
         wiFiSetup();
         serverSetup();
-
-        // OTA Updates
-        if (WiFi.status() == WL_CONNECTED) {
-            otaPass = config.get<String>("system.ota_password");
-        }
-
         setupMqtt();
 
         if (mqtt_enabled) {
@@ -1601,6 +1595,7 @@ void setBDPIDTunings() {
 }
 
 void configureArduinoOta() {
+    otaPass = config.get<String>("system.ota_password");
     ArduinoOTA.setHostname(hostname.c_str()); //  Device name for OTA
     ArduinoOTA.setPassword(otaPass.c_str());  //  Password for OTA
 
