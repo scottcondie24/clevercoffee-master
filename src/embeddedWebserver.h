@@ -26,9 +26,9 @@ inline double curTemp = 0.0;
 inline double tTemp = 0.0;
 inline double hPower = 0.0;
 
-#define HISTORY_LENGTH 600 // 30 mins of values (20 vals/min * 60 min) = 600 (7,2kb)
+#define HISTORY_LENGTH 600 // 10 mins of values (60 vals/min * 10 min) = 600 (3.6kb)
 
-static float tempHistory[3][HISTORY_LENGTH] = {};
+static int16_t tempHistory[3][HISTORY_LENGTH] = {};
 inline int historyCurrentIndex = 0;
 inline int historyValueCount = 0;
 
@@ -447,7 +447,7 @@ inline void serverSetup() {
         for (int i = mod(historyCurrentIndex - historyValueCount, HISTORY_LENGTH); i != mod(historyCurrentIndex, HISTORY_LENGTH); i = mod(i + 1, HISTORY_LENGTH)) {
             if (!first) response->print(',');
             first = false;
-            response->print(round2(tempHistory[0][i]), 2);
+            response->print(tempHistory[0][i] * 0.01f, 2);
         }
 
         response->print("],");
@@ -458,7 +458,7 @@ inline void serverSetup() {
         for (int i = mod(historyCurrentIndex - historyValueCount, HISTORY_LENGTH); i != mod(historyCurrentIndex, HISTORY_LENGTH); i = mod(i + 1, HISTORY_LENGTH)) {
             if (!first) response->print(',');
             first = false;
-            response->print(round2(tempHistory[1][i]), 2);
+            response->print(tempHistory[1][i] * 0.01f, 2);
         }
 
         response->print("],");
@@ -469,7 +469,7 @@ inline void serverSetup() {
         for (int i = mod(historyCurrentIndex - historyValueCount, HISTORY_LENGTH); i != mod(historyCurrentIndex, HISTORY_LENGTH); i = mod(i + 1, HISTORY_LENGTH)) {
             if (!first) response->print(',');
             first = false;
-            response->print(round2(tempHistory[2][i]), 2);
+            response->print(tempHistory[2][i] * 0.01f, 2);
         }
 
         response->print("]}");
@@ -642,11 +642,11 @@ inline void sendTempEvent(const double currentTemp, const double targetTemp, con
     // save all values in memory to show history
     if (skippedValues > 0 && skippedValues % SECONDS_TO_SKIP == 0) {
         // use array and int value for start index (round robin)
-        // one record (3 float values == 12 bytes) every three seconds, for half
-        // an hour -> 7.2kB of static memory
-        tempHistory[0][historyCurrentIndex] = static_cast<float>(currentTemp);
-        tempHistory[1][historyCurrentIndex] = static_cast<float>(targetTemp);
-        tempHistory[2][historyCurrentIndex] = static_cast<float>(heaterPower);
+        // one record (3 int values == 6 bytes) every second, for ten
+        // minutes -> 3.6kB of static memory
+        tempHistory[0][historyCurrentIndex] = static_cast<int16_t>(currentTemp * 100);
+        tempHistory[1][historyCurrentIndex] = static_cast<int16_t>(targetTemp * 100);
+        tempHistory[2][historyCurrentIndex] = static_cast<int16_t>(heaterPower * 100);
         historyCurrentIndex = (historyCurrentIndex + 1) % HISTORY_LENGTH;
         historyValueCount = min(HISTORY_LENGTH - 1, historyValueCount + 1);
         skippedValues = 0;
@@ -655,6 +655,8 @@ inline void sendTempEvent(const double currentTemp, const double targetTemp, con
         skippedValues++;
     }
 
-    events.send("ping", nullptr, millis());
-    events.send(getTempString().c_str(), "new_temps", millis());
+    if (events.count() > 0) {
+        events.send("ping", nullptr, millis());
+        events.send(getTempString().c_str(), "new_temps", millis());
+    }
 }

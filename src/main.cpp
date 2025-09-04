@@ -1280,9 +1280,7 @@ void loopPid() {
         websiteUpdateRunning = true;
 
         // send temperatures to website endpoint
-        if (WiFi.status() == WL_CONNECTED && !offlineMode) {
-            sendTempEvent(temperature, brewSetpoint, pidOutput / 10); // pidOutput is promill, so /10 to get percent value
-        }
+        sendTempEvent(temperature, brewSetpoint, pidOutput / 10); // pidOutput is promill, so /10 to get percent value
 
         lastTempEvent = millis();
 
