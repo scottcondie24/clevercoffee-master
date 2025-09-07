@@ -917,13 +917,12 @@ void displayScrollingSubstring(int x, int y, int displayWidth, const char* text,
 }
 
 void drawEncoderControlLabel() {
-    // u8g2->print(menuLevel == 1 ? ">" : " ");
-    u8g2->print(" ");
+    u8g2->print(menuLevel == 1 ? ">" : " ");
     u8g2->print(dimmerModes[config.get<int>("dimmer.mode")]);
 }
 
 void drawEncoderControlValue() {
-    // u8g2->print(menuLevel == 2 ? ">" : " ");
+    u8g2->print(menuLevel == 2 ? ">" : " ");
     switch (config.get<int>("dimmer.mode")) {
         case POWER:
             u8g2->print(config.get<float>("dimmer.setpoint.power"), 0);
