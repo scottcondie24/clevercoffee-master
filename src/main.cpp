@@ -35,8 +35,8 @@
 #include "hardware/StandardLED.h"
 #include "hardware/Switch.h"
 #include "hardware/pinmapping.h"
-#include "hardware/pumpControl.h"
 #include "hardware/pressureSensorAds1115.h"
+#include "hardware/pumpControl.h"
 #include "hardware/tempsensors/TempSensorDallas.h"
 #include "hardware/tempsensors/TempSensorK.h"
 
@@ -1027,6 +1027,7 @@ void setup() {
     }
 
     if (config.get<bool>("hardware.switches.steam.enabled")) {
+        LOG(WARNING, "Steam LED disrupts USB serial communication");
         const auto type = static_cast<Switch::Type>(config.get<int>("hardware.switches.steam.type"));
         const auto mode = static_cast<Switch::Mode>(config.get<int>("hardware.switches.steam.mode"));
         steamSwitch = new IOSwitch(PIN_STEAMSWITCH, GPIOPin::IN_HARDWARE, type, mode, mode);

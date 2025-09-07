@@ -89,6 +89,7 @@ loadLib("/css/fontawesome-6.2.1.min.css", "https://cdnjs.cloudflare.com/ajax/lib
 })
 .then(() => {
   console.log("App loaded");
+  if (window.onLibsReady) window.onLibsReady();
 })
 .catch(err => {
   console.error("Error loading JS libraries:", err);
