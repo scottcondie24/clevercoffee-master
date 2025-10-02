@@ -12,22 +12,27 @@ int descriptionScrollY = 0;
 
 void initEncoder() {
     ESP32Encoder::useInternalWeakPullResistors = puType::up;
-    // encoder.attachHalfQuad(PIN_ROTARY_DT, PIN_ROTARY_CLK);
-    encoder.attachFullQuad(PIN_ROTARY_DT, PIN_ROTARY_CLK);
+    encoder.attachHalfQuad(PIN_ROTARY_DT, PIN_ROTARY_CLK);
+    // encoder.attachFullQuad(PIN_ROTARY_DT, PIN_ROTARY_CLK);
     encoder.setCount(0);
 }
 
 int getEncoderDelta(void) {
-    static long lastencodervalue = 0;
+    static long lastValueDelta = 0;
+    static long lastValueSent = 0;
     // long value = encoder.getCount() / 2;
-    long value = encoder.getCount() / (menuLevel == 3 ? 1 : 4);
-    int delta = value - lastencodervalue;
+    long value = encoder.getCount();
+    int delta = (value - lastValueDelta) / (menuLevel == 3 ? 1 : 2); // smooth scroll for descriptions
+    // int delta = (value - lastValueDelta) / (menuLevel == 3 ? 1 : 4); // smooth scroll for descriptions
 
-    if (lastencodervalue != value) {
+    if (lastValueSent != value) {
         LOGF(INFO, "Rotary Encoder Value: %i", value);
+        lastValueSent = value;
     }
 
-    lastencodervalue = value;
+    if (delta != 0) {
+        lastValueDelta = value;
+    }
 
     return delta;
 }
@@ -68,7 +73,8 @@ void encoderHandler() {
             }
             else if (menuLevel == 3) {
                 if ((delta < 0) || (!blockScroll)) {
-                    descriptionScrollY -= delta * 3;
+                    // descriptionScrollY -= delta * 3;
+                    descriptionScrollY -= delta * 6;
 
                     if (descriptionScrollY > 0) {
                         descriptionScrollY = 0;

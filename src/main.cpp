@@ -152,12 +152,12 @@ Switch* encoderSwitch = nullptr;
 GPIOPin* statusLedPin = nullptr;
 GPIOPin* brewLedPin = nullptr;
 GPIOPin* steamLedPin = nullptr;
-GPIOPin* waterLedPin = nullptr;
+GPIOPin* hotWaterLedPin = nullptr;
 
 LED* statusLed = nullptr;
 LED* brewLed = nullptr;
 LED* steamLed = nullptr;
-LED* waterLed = nullptr;
+LED* hotWaterLed = nullptr;
 
 GPIOPin heaterRelayPin(PIN_HEATER, GPIOPin::OUT);
 Relay* heaterRelay = nullptr;
@@ -633,6 +633,12 @@ void handleMachineState() {
                 machineState = kPidNormal;
             }
 
+            if (currBackflushState == kBackflushIdle) {
+                if (manualFlush()) {
+                    machineState = kManualFlush;
+                }
+            }
+
             if (emergencyStop) {
                 machineState = kEmergencyStop;
             }
@@ -1067,6 +1073,13 @@ void setup() {
         steamLedPin = new GPIOPin(PIN_STEAMLED, GPIOPin::OUT);
         steamLed = new StandardLED(*steamLedPin, inverted);
         steamLed->turnOff();
+    }
+
+    if (config.get<bool>("hardware.leds.hot_water.enabled")) {
+        const bool inverted = config.get<bool>("hardware.leds.hot_water.inverted");
+        hotWaterLedPin = new GPIOPin(PIN_HOTWATERLED, GPIOPin::OUT);
+        hotWaterLed = new StandardLED(*hotWaterLedPin, inverted);
+        hotWaterLed->turnOff();
     }
 
     if (config.get<bool>("hardware.sensors.watertank.enabled")) {
@@ -1642,8 +1655,8 @@ void loopLED() {
         steamLed->setGPIOState(machineState == kSteam);
     }
 
-    if (config.get<bool>("hardware.leds.water.enabled") && waterLed != nullptr) {
-        waterLed->setGPIOState(machineState == kHotWater);
+    if (config.get<bool>("hardware.leds.hot_water.enabled") && hotWaterLed != nullptr) {
+        hotWaterLed->setGPIOState(machineState == kHotWater);
     }
 }
 

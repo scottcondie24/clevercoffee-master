@@ -15,6 +15,7 @@ ADS1115_ADC adc(I2CAddress::Gnd);
 
 const unsigned long intervalPressureAdsDebug = 1000;
 unsigned long previousMillisPressureAdsDebug = 0;
+bool errorDetected = false;
 
 double analog_pressure = 0.0;     // pressure reading in bar
 #define CONVERSION_FACTOR_P 3     // sensor is 12 Bar over 4V
@@ -43,18 +44,27 @@ float measurePressureAds() {
 
     Status status = adc.readConversionVoltage(voltage);
 
-    if (status != Status::Ok) {
-        // handle the error
+    if (status != Status::Ok || voltage < 0.1f) {
+        if (!errorDetected) {
+            LOG(ERROR, "ADS1115: bad read detected, recovering...");
+            errorDetected = true;
+        }
+
+        pressureInit();
+
+        return (float)analog_pressure;
     }
+    else {
+        errorDetected = false;
+        analog_pressure = (voltage - RANGEOFFSET_P) * CONVERSION_FACTOR_P;
 
-    analog_pressure = (voltage - RANGEOFFSET_P) * CONVERSION_FACTOR_P;
+        IFLOG(TRACE) {
+            unsigned long currentMillisPressureAdsDebug = millis();
 
-    IFLOG(TRACE) {
-        unsigned long currentMillisPressureAdsDebug = millis();
-
-        if (currentMillisPressureAdsDebug - previousMillisPressureAdsDebug >= intervalPressureAdsDebug) {
-            LOGF(TRACE, "Voltage: %f, Pressure: %f", voltage, analog_pressure);
-            previousMillisPressureAdsDebug = currentMillisPressureAdsDebug;
+            if (currentMillisPressureAdsDebug - previousMillisPressureAdsDebug >= intervalPressureAdsDebug) {
+                LOGF(TRACE, "Voltage: %f, Pressure: %f", voltage, analog_pressure);
+                previousMillisPressureAdsDebug = currentMillisPressureAdsDebug;
+            }
         }
     }
 

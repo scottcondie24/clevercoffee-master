@@ -1375,7 +1375,7 @@ void ParameterRegistry::initialize(Config& config) {
     );
     
     addBoolConfigParam(
-        "hardware.leds.water.enabled",
+        "hardware.leds.hot_water.enabled",
         "Enable Water LED",
         sHardwareLedSection,
         2331,
@@ -1384,7 +1384,7 @@ void ParameterRegistry::initialize(Config& config) {
     );
 
     addBoolConfigParam(
-        "hardware.leds.water.inverted",
+        "hardware.leds.hot_water.inverted",
         "Invert Water LED",
         sHardwareLedSection,
         2332,

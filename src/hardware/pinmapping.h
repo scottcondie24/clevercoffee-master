@@ -47,10 +47,10 @@
 #define PIN_HEATER 2
 
 // LEDs
-#define PIN_STATUSLED 15 // not connected
-#define PIN_BREWLED   19
-#define PIN_STEAMLED  1
-#define PIN_WATERLED  26 // reusing statusled pin
+#define PIN_STATUSLED   15 // not connected
+#define PIN_BREWLED     19
+#define PIN_STEAMLED    1
+#define PIN_HOTWATERLED 26 // reusing statusled pin
 
 // Periphery
 #define PIN_ZC 18 // Dimmer circuit Zero Crossing

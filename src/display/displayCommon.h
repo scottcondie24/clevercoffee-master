@@ -700,18 +700,21 @@ inline bool displayOfflineMode() {
  * @brief display heating logo
  */
 inline bool displayMachineState() {
+    if (shouldDisplayBrewTimer()) {
+        return false;
+    }
 
     if (displayOfflineMode()) {
         return true;
     }
 
     if (displayProfileDescription) {
-        String msg = currentProfile->description + "\n";
+        String msg = String(currentProfile->description) + "\n";
 
-        for (int i = 0; i < phaseCount; i++) {
+        for (int i = 0; i < currentProfile->phaseCount; i++) {
             msg += "Phase " + String(i + 1) + ": ";
-            msg += currentProfile->phases[i].name + "\n"; // first phase name
-            msg += currentProfile->phases[i].description + "\n\n";
+            msg += String(currentProfile->phases[i].name) + "\n"; // first phase name
+            msg += String(currentProfile->phases[i].description) + "\n\n";
         }
 
         displayWrappedMessage(msg, 0, descriptionScrollY);
