@@ -359,7 +359,7 @@ void checkWifi() {
             if (wifiConnectCounter == 1) {
                 wifiReconnects++;
                 LOGF(INFO, "Attempting WIFI (re-)connection: %i", wifiReconnects);
-                stopMdnsOta();
+                // stopMdnsOta();
                 wm.disconnect();
                 WiFi.begin();
             }
@@ -1637,9 +1637,9 @@ void stopMdnsOta() {
     if (otaStarted) {
         ArduinoOTA.end();
         otaStarted = false;
+        mdnsStarted = false; // ArduinoOTA calls mdnsSocket.stop();
     }
-
-    if (mdnsStarted) {
+    else if (mdnsStarted) {
         MDNS.end();
         mdnsStarted = false;
     }
