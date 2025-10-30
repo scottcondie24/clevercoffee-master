@@ -657,9 +657,7 @@ void handleMachineState() {
 
         case kStandby:
             {
-                bool oledEnabled = config.get<bool>("hardware.oled.enabled");
-
-                if (standbyModeRemainingTimeDisplayOffMillis == 0 && oledEnabled) {
+                if (standbyModeRemainingTimeDisplayOffMillis == 0 && u8g2 != nullptr) {
                     u8g2->setPowerSave(1);
                 }
 
@@ -667,7 +665,7 @@ void handleMachineState() {
                     machineState = kPidNormal;
                     resetStandbyTimer(machineState);
 
-                    if (oledEnabled) {
+                    if (u8g2 != nullptr) {
                         u8g2->setPowerSave(0);
                     }
                 }
@@ -676,7 +674,7 @@ void handleMachineState() {
                     machineState = kSteam;
                     resetStandbyTimer(machineState);
 
-                    if (oledEnabled) {
+                    if (u8g2 != nullptr) {
                         u8g2->setPowerSave(0);
                     }
                 }
@@ -686,7 +684,7 @@ void handleMachineState() {
                     machineState = kHotWater;
                     resetStandbyTimer(machineState);
 
-                    if (oledEnabled) {
+                    if (u8g2 != nullptr) {
                         u8g2->setPowerSave(0);
                     }
                 }
@@ -696,7 +694,7 @@ void handleMachineState() {
                     machineState = kBrew;
                     resetStandbyTimer(machineState);
 
-                    if (oledEnabled) {
+                    if (u8g2 != nullptr) {
                         u8g2->setPowerSave(0);
                     }
                 }
@@ -706,7 +704,7 @@ void handleMachineState() {
                     machineState = kManualFlush;
                     resetStandbyTimer(machineState);
 
-                    if (oledEnabled) {
+                    if (u8g2 != nullptr) {
                         u8g2->setPowerSave(0);
                     }
                 }
@@ -715,13 +713,13 @@ void handleMachineState() {
                     machineState = kBackflush;
                     resetStandbyTimer(machineState);
 
-                    if (oledEnabled) {
+                    if (u8g2 != nullptr) {
                         u8g2->setPowerSave(0);
                     }
                 }
 
                 if (tempSensor != nullptr && tempSensor->hasError()) {
-                    if (oledEnabled) {
+                    if (u8g2 != nullptr) {
                         u8g2->setPowerSave(0);
                     }
 
@@ -783,8 +781,6 @@ void wiFiSetup() {
     wm.setBreakAfterConfig(true);
     wm.setConnectRetries(3);
 
-    bool oledEnabled = config.get<bool>("hardware.oled.enabled");
-
     if (wm.getWiFiIsSaved()) {
         LOG(INFO, "Connecting to WiFi");
     }
@@ -799,7 +795,7 @@ void wiFiSetup() {
         wifiConnected = wm.startConfigPortal(hostname.c_str(), pass);
         wm.setConfigPortalTimeout(60); // sec timeout for captive portal
 
-        if (oledEnabled) {
+        if (u8g2 != nullptr) {
             displayLogo(String(langstring_portalAP) + "\n" + hostname);
         }
 
@@ -826,7 +822,7 @@ void wiFiSetup() {
         snprintf(fullMac, sizeof(fullMac), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
         LOGF(INFO, "MAC-ADDRESS: %s", fullMac);
 
-        if (oledEnabled) {
+        if (u8g2 != nullptr) {
             displayLogo(String(langstring_connectwifi) + '\n' + wm.getWiFiSSID(true));
             delay(1500);
 
@@ -846,7 +842,7 @@ void wiFiSetup() {
     else {
         LOG(INFO, "WiFi connection timed out...");
 
-        if (oledEnabled) {
+        if (u8g2 != nullptr) {
             displayLogo(String(langstring_nowifi[0]) + '\n' + String(langstring_nowifi[1]));
         }
 
@@ -1151,7 +1147,7 @@ void setup() {
         previousMillisPressure = currentTime;
     }
 
-    if (config.get<bool>("hardware.oled.enabled")) {
+    if (u8g2 != nullptr) {
         if (!(config.get<bool>("hardware.sensors.scale.enabled") && config.get<int>("hardware.sensors.scale.type") < 2)) {
             delay(2000); // add delay if not hx711 to give time to display IP address
         }
@@ -1355,7 +1351,7 @@ void loopPid() {
 
     displayUpdateRunning = false;
 
-    if (config.get<bool>("hardware.oled.enabled")) {
+    if (u8g2 != nullptr) {
 
         // update display on loops that have not had other major tasks running, if blocked it will send in the next loop (average 0.5ms)
         if ((!websiteUpdateRunning && !mqttUpdateRunning && !hassioUpdateRunning && !temperatureUpdateRunning) || (millis() - lastDisplayUpdate > 500)) {
