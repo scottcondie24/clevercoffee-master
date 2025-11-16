@@ -1,10 +1,14 @@
 // load-libs.js
 
+// const LOAD_MODE = "auto";  
+const LOAD_MODE = "local";  
+// const LOAD_MODE = "cdn";
+
 function loadLib(localUrl, cdnUrl, type="js", globalAssign=null) {
   return new Promise((resolve, reject) => {
     let finished = false;
 
-    function inject(url, isLocal) {
+    function inject(url, sourceTag) {
       let el;
       if(type === "js") {
         el = document.createElement("script");
@@ -22,22 +26,31 @@ function loadLib(localUrl, cdnUrl, type="js", globalAssign=null) {
           if(globalAssign && type==="js") {
             globalAssign();
           }
-          resolve(isLocal ? "local" : "cdn");
+          resolve(sourceTag);
         }
       };
 
-      el.onerror = () => { 
-        if(isLocal) reject(); // fail only if local fails
+      el.onerror = () => {
+        if (sourceTag === "local" && LOAD_MODE === "local")
+          reject(new Error("Local file failed in local-only mode"));
       };
 
       document.head.appendChild(el);
       return el;
     }
 
-    let localEl = inject(localUrl, true);
+    if (LOAD_MODE === "local") {
+      return inject(localUrl, "local");
+    }
+
+    if (LOAD_MODE === "cdn") {
+      return inject(cdnUrl || localUrl, "cdn");
+    }
+
+    let localEl = inject(localUrl, "local");
 
     if(cdnUrl){
-      let cdnEl = inject(cdnUrl, false);
+      let cdnEl = inject(cdnUrl, "cdn");
       cdnEl.onload = () => {
         if(!finished){
           finished = true;
