@@ -7,8 +7,8 @@
           <h5 class="card-title">Pump Control Settings</h5>
         </div>
         <div class="card-body">
-          <div class="row row-cols-3 row-cols-md-3">
-            <div class="col-md-5 mb-4">
+          <div class="row">
+            <div class="col-12 mb-4">
               <div><strong>Control Method:</strong> <span id="controlMethod">--</span></div>
               <div><strong>Profile:</strong> <span id="profileName">--</span></div>
               <div><strong>Profile Description:</strong></div>
@@ -203,58 +203,55 @@
       createLegend(options.series, legendRef);
 
       function tooltipsPlugin() {
-        let tooltips = [];
+        let tooltip;
 
         function init(u) {
           const over = u.over;
 
-          // Create a tooltip div for each series, should probably change this to a single combined tooltip
-          for (let i = 1; i < u.series.length; i++) {
-            const tt = document.createElement("div");
-            tt.className = "uplot-tooltip";
-            tt.style.position = "absolute";
-            tt.style.pointerEvents = "none";
-            tt.style.background = "rgba(0,0,0,0.7)";
-            tt.style.color = "#fff";
-            tt.style.fontSize = "10px";
-            tt.style.padding = "2px 4px";
-            tt.style.borderRadius = "3px";
-            tt.style.display = "none";
-            tt.style.whiteSpace = "nowrap";
+          tooltip = document.createElement("div");
+          tooltip.className = "uplot-tooltip";
+          tooltip.style.position = "absolute";
+          tooltip.style.pointerEvents = "none";
+          tooltip.style.background = "rgba(0,0,0,0.7)";
+          tooltip.style.color = "#fff";
+          tooltip.style.fontSize = "11px";
+          tooltip.style.padding = "6px 8px";
+          tooltip.style.borderRadius = "4px";
+          tooltip.style.whiteSpace = "pre";
+          tooltip.style.display = "none";
 
-            over.appendChild(tt);
-            tooltips.push(tt);
-          }
+          over.appendChild(tooltip);
 
-          // Hide all tooltips on mouse leave
           over.addEventListener("mouseleave", () => {
-            tooltips.forEach(tt => tt.style.display = "none");
+            tooltip.style.display = "none";
           });
         }
 
         function setCursor(u) {
           const { idx } = u.cursor;
+          if (idx == null) return;
+
+          const xVal = u.data[0][idx];
+          if (xVal == null) return;
+
+          let text = `t=${xVal.toFixed(2)}s\n`;
 
           for (let i = 1; i < u.series.length; i++) {
-            const tt = tooltips[i - 1];
             const s = u.series[i];
-
-            const xVal = u.data[0][idx];
             const yVal = u.data[i][idx];
+            if (yVal == null) continue;
 
-            if (xVal == null || yVal == null || !s.show) {
-              tt.style.display = "none";
-              continue;
-            }
-
-            const xPos = u.valToPos(xVal, 'x');
-            const yPos = u.valToPos(yVal, s.scale);
-
-            tt.textContent = `${s.label || "Series " + i}: ${yVal.toFixed(2)}`;
-            tt.style.left = `${xPos + 10}px`;
-            tt.style.top = `${yPos - 10}px`;
-            tt.style.display = "block";
+            text += `${s.label}: ${yVal.toFixed(2)}\n`;
           }
+
+          tooltip.textContent = text;
+          tooltip.style.display = "block";
+
+          const xPos = u.valToPos(xVal, "x");
+          const yPos = u.cursor.top;
+
+          tooltip.style.left = `${xPos + 12}px`;
+          tooltip.style.top = `${yPos - 12}px`;
         }
 
         return {

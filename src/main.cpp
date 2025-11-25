@@ -156,10 +156,8 @@ GPIOPin* heaterRelayPin = nullptr;
 GPIOPin* pumpRelayPin = nullptr;
 GPIOPin* valveRelayPin = nullptr;
 
-GPIOPin pumpRelayPin(PIN_PUMP, GPIOPin::OUT);
 std::unique_ptr<PumpControl> pumpRelay = nullptr;
-
-GPIOPin valveRelayPin(PIN_VALVE, GPIOPin::OUT);
+Relay* heaterRelay = nullptr;
 Relay* valveRelay = nullptr;
 
 GPIOPin pumpZCPin(PIN_ZC, GPIOPin::IN_HARDWARE);
@@ -1000,7 +998,7 @@ void setup() {
     const auto pumpTriggerType = static_cast<Relay::TriggerType>(config.get<int>("hardware.relays.pump.trigger_type"));
 
     if (config.get<bool>("dimmer.enabled")) {
-        pumpRelay = std::make_unique<PumpDimmer>(pumpRelayPin, pumpZCPin, 1, config.get<bool>("dimmer.frequency"));
+        pumpRelay = std::make_unique<PumpDimmer>(*pumpRelayPin, pumpZCPin, 1, config.get<bool>("dimmer.frequency"));
         auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
         dimmer->begin();
         dimmer->setPower(0);
@@ -1017,7 +1015,7 @@ void setup() {
         dimmer->setCalibration(config.get<float>("dimmer.calibration.flow_rate1"), config.get<float>("dimmer.calibration.flow_rate2"), config.get<float>("dimmer.calibration.opv_pressure"));
     }
     else {
-        pumpRelay = std::make_unique<Relay>(pumpRelayPin, pumpTriggerType);
+        pumpRelay = std::make_unique<Relay>(*pumpRelayPin, pumpTriggerType);
     }
 
     pumpRelay->off();

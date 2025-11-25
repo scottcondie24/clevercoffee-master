@@ -371,8 +371,8 @@ void loopPump() {
 
         // override for flush and backflush
         if (machineState == kBackflush) {
-            pumpControlMode = PRESSURE;
-            setPressure = 9.0;
+            pumpControlMode = POWER;
+            dimmerPower = 100;
         }
         else if (machineState == kManualFlush) {
             if (config.get<int>("dimmer.mode") == FLOW) {
