@@ -1,4 +1,8 @@
 // load-libs.js
+window.__libsCallback = null;
+window.onLibsReady = function(cb) {
+  window.__libsCallback = cb;
+};
 
 let LOAD_MODE = "auto"; // other options are local,cdn
 const allowedModes = ["local", "cdn", "auto"];
@@ -131,14 +135,11 @@ function loadLib(localUrl, cdnUrl, type="js", globalAssign=null, mode="auto") {
   });
 }
 
-// --------------------------
 // Test if CDN is available
-// --------------------------
 runSingleCDNProbe("https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css")
   .then(() => {
-// --------------------------
+
 // Load CSS in sequence
-// --------------------------
   return loadWhenFree(minHeap, "/css/fontawesome-6.2.1.min.css", "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css", "css");
   })
 .then(src => {
@@ -151,9 +152,8 @@ runSingleCDNProbe("https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstr
 })
 .then(src => {
   console.log(`uPlot CSS loaded from ${src}`);
-// --------------------------
+  
 // Load JS in sequence
-// --------------------------
   return loadWhenFree(minHeap, "/js/vue.3.2.47.min.js", "https://cdn.jsdelivr.net/npm/vue@3.2.47/dist/vue.global.prod.min.js", "js", () => { window.Vue = Vue; });
 })
 .then(src => {
@@ -174,6 +174,7 @@ runSingleCDNProbe("https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstr
 })
 .then(() => {
   console.log("App loaded");
+  if (window.__libsCallback) window.__libsCallback();
 })
 .catch(err => {
   console.error("Error loading JS libraries:", err);
