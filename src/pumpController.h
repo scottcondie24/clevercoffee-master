@@ -19,10 +19,6 @@ unsigned long previousMillisPumpControl = 0;
 unsigned long pumpControlInterval = 50;
 unsigned long maxPumpControlInterval = 100;
 
-// unsigned long blockMQTTInterval = 10000;
-// unsigned long blockWebsiteInterval = 40000;
-// unsigned long blockDisplayInterval = 12000;
-// unsigned long blockStart = 0;
 float pumpdt = pumpControlInterval / 1000.0; // Time step in seconds
 
 float flowPressureCeiling = 0;
@@ -77,12 +73,10 @@ void dimmerModeHandler() {
     previousError = 0;
 
     if (config.get<int>("dimmer.mode") == PROFILE) {
-        // BrewProfile* profile = getProfile(currentProfileIndex);
-
-        if (currentProfile) {
-            profileName = currentProfile->name;
-            profileDescription = currentProfile->description;
-            autoStop = currentProfile->stop;
+        if (currentProfile.phaseCount > 0) {
+            profileName = currentProfile.name;
+            profileDescription = currentProfile.description;
+            autoStop = currentProfile.stop && config.get<bool>("hardware.sensors.scale.enabled");
             lastBrewSetpoint = brewSetpoint;
             LOGF(INFO, "Profile Index: %i -- Profile Name: %s", currentProfileIndex, profileName);
         }
@@ -111,6 +105,7 @@ void dimmerTypeHandler() {
     }
 }
 
+// only runs while in kBrew
 void runProfile(int profileIndex) {
     if (profileIndex < 0 || profileIndex >= profilesCount) {
         return;
@@ -124,9 +119,7 @@ void runProfile(int profileIndex) {
     static float filteredWeight = 0.0;
     static bool phaseReset = false;
 
-    // BrewProfile* profile = getProfile(profileIndex);
-    // BrewProfile* profile = currentProfile;
-
+    // initialise all variables
     if (startProfile) {
         startProfile = false;
         brewProfileComplete = false;
@@ -137,12 +130,12 @@ void runProfile(int profileIndex) {
         lastSetFlow = 0.0;
         phaseTiming = 0;
         phaseReset = true;
-        LOGF(DEBUG, "Running profile: %s\n", currentProfile->name);
+        LOGF(DEBUG, "Running profile: %s\n", currentProfile.name);
         updateMetadata = true;
     }
 
-    while (currentPhaseIndex < currentProfile->phaseCount) {
-        BrewPhase& phase = currentProfile->phases[currentPhaseIndex];
+    while (currentPhaseIndex < currentProfile.phaseCount) {
+        BrewPhase& phase = currentProfile.phases[currentPhaseIndex];
         phaseName = phase.name;
         phaseDescription = phase.description;
 
@@ -187,9 +180,9 @@ void runProfile(int profileIndex) {
             filteredWeight = lastBrewWeight;
             updateMetadata = true;
 
-            if (currentPhaseIndex < currentProfile->phaseCount) {
+            if (currentPhaseIndex < currentProfile.phaseCount) {
                 // use the profile->phase method as currentPhaseIndex has been incremented
-                LOGF(DEBUG, "Moving to Phase %d: %s for %.1f seconds", currentPhaseIndex, currentProfile->phases[currentPhaseIndex].name, currentProfile->phases[currentPhaseIndex].seconds);
+                LOGF(DEBUG, "Moving to Phase %d: %s for %.1f seconds", currentPhaseIndex, currentProfile.phases[currentPhaseIndex].name, currentProfile.phases[currentPhaseIndex].seconds);
             }
             else {
                 brewProfileComplete = true;
@@ -203,17 +196,17 @@ void runProfile(int profileIndex) {
 
     // Control logic based on phase settings
     // check if still in phases, otherwise skip control
-    if (currentPhaseIndex >= currentProfile->phaseCount) {
+    if (currentPhaseIndex >= currentProfile.phaseCount) {
         return;
     }
 
-    BrewPhase& phase = currentProfile->phases[currentPhaseIndex];
+    BrewPhase& phase = currentProfile.phases[currentPhaseIndex];
 
     if (phaseReset) {
         LOGF(DEBUG, "Phase %s: exit_type=%d, flow_over=%.2f, pressure_over=%.2f, for %.1f seconds", phase.name, phase.exit_type, phase.exit_flow_over, phase.exit_pressure_over, phase.seconds);
 
         if ((phase.transition == TRANSITION_SMOOTH) && (phase.seconds < 1.0)) {
-            LOGF(WARNING, "Phase '%s' duration (%.2f s) is less than recommended minimum of 1 second for smooth transitions", phase.name, phase.seconds);
+            LOGF(WARNING, "Phase '%s' duration (%.2f s) is less than 1 second for smooth transitions", phase.name, phase.seconds);
         }
     }
 
@@ -533,5 +526,4 @@ void loopPump() {
             previousMillisPumpControl = millis() - pumpControlInterval; // stops large spikes in log data timing
         }
     }
-    // blockStart = micros(); //give other functions like display and MQTT some time to refresh
 }
