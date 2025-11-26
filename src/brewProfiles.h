@@ -3,6 +3,11 @@
 #include <Stream.h>
 #include <vector>
 
+constexpr int MAX_PROFILES = 10;
+constexpr int MAX_PHASES = 6;
+constexpr int MAX_NAME = 32;
+constexpr int MAX_DESC = 256;
+
 typedef enum {
     EXIT_TYPE_NONE,
     EXIT_TYPE_FLOW_UNDER,
@@ -26,8 +31,8 @@ typedef enum {
 } PumpMode;
 
 typedef struct {
-        const char* name;
-        const char* description;
+        char name[MAX_NAME];
+        char description[MAX_DESC];
         float pressure, flow, volume, weight;
         float exit_flow_under, exit_flow_over;
         float exit_pressure_over, exit_pressure_under;
@@ -39,34 +44,33 @@ typedef struct {
 } BrewPhase;
 
 typedef struct {
-        const char* name;
-        const char* description;
-        BrewPhase* phases;
+        char name[MAX_NAME];
+        char description[MAX_DESC];
+        BrewPhase phases[MAX_PHASES];
         int phaseCount;
         float temperature;
-        float time;
+        float time; // not used yet
         bool scales;
         bool flow;
         bool stop;
 } BrewProfile;
 
 struct BrewProfileInfo {
-        String name;
-        String description;
+        char name[MAX_NAME];
+        // char description;
 };
 
-extern BrewProfile* currentProfile;
 extern size_t profilesCount;
-extern std::vector<BrewProfileInfo> profileInfo;
+extern BrewProfileInfo profileInfo[MAX_PROFILES];
+extern BrewProfile currentProfile;
 
-// void populateProfileNames();
 ExitType parseExitType(const char* str);
 TransitionType parseTransition(const char* str);
 PumpMode parsePump(const char* str);
 
 void loadProfileMetadata();
-void selectProfileByName(const String& name);
-const char* getPhaseDescriptions(BrewProfile* currentProfile);
+void selectProfileByName(const char* name);
+const char* getPhaseDescriptions(BrewProfile& currentProfile);
 
 // bool loadProfile(const char* json, BrewPhase* phases, size_t maxPhases, size_t& outCount);
 // void saveProfile(BrewPhase* phases, size_t count, Stream& out);

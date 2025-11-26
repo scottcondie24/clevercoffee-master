@@ -28,6 +28,7 @@
 
 // Hardware classes
 #include "hardware/Dimmers.h"
+#include "hardware/Dimmers.h"
 #include "hardware/GPIOPin.h"
 #include "hardware/IOSwitch.h"
 #include "hardware/LED.h"
@@ -330,6 +331,11 @@ int getSignalStrength() {
 
     return 0;
 }
+
+/*void printHeap(const char* text) {
+    LOGF(DEBUG, "%s: Free Heap: %u, MaxAalloc: %u", text, ESP.getFreeHeap(), heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
+    delay(1000);
+}*/
 
 bool shouldDisplayBrewTimer();
 void u8g2_prepare();
@@ -1266,29 +1272,24 @@ void setup() {
 
     if (config.get<bool>("dimmer.enabled") && config.get<bool>("hardware.sensors.pressure.enabled")) {
         loadProfileMetadata(); // loads only names
-        // parseDefaultProfiles();
-        // populateProfileNames();
-        // profilesCount = loadedProfiles.size();
-        profilesCount = profileInfo.size();
-        LOGF(INFO, "Found %d brew profiles", profilesCount);
         currentProfileIndex = config.get<int>("dimmer.profile");
-
+        LOGF(DEBUG, "currentProfileIndex %d", currentProfileIndex);
+        LOGF(DEBUG, "profilesCount %d", profilesCount);
         if (currentProfileIndex >= profilesCount) {
             currentProfileIndex = 0;
         }
 
         dimmerTypeHandler();
 
-        // BrewProfile* profile = getProfile(currentProfileIndex);
         selectProfileByName(profileInfo[currentProfileIndex].name);
-        if (currentProfile) {
-            profileName = currentProfile->name;
-            profileDescription = currentProfile->description;
-            autoStop = currentProfile->stop;
+        if (currentProfile.phaseCount > 0) {
+            profileName = currentProfile.name;
+            profileDescription = currentProfile.description;
+            autoStop = currentProfile.stop && config.get<bool>("hardware.sensors.scale.enabled");
 
-            if (currentProfile->phaseCount > 0 && currentProfile->phases) {
-                phaseName = currentProfile->phases[currentPhaseIndex].name;               // first phase name
-                phaseDescription = currentProfile->phases[currentPhaseIndex].description; // first phase description
+            if (currentProfile.phaseCount > 0 && currentProfile.phases) {
+                phaseName = currentProfile.phases[currentPhaseIndex].name;               // first phase name
+                phaseDescription = currentProfile.phases[currentPhaseIndex].description; // first phase description
             }
             else {
                 phaseName = "No phases";
@@ -1438,13 +1439,9 @@ void loopPid() {
         lastmachinestatehtml = machineState;
     }
 
-    if ((machineState != kBrew) && (lastmachinestatehtml == kBrew)) {
-        stopBrewEvent();
-        lastmachinestatehtml = machineState;
-    }
-
     if (pumpRelay->getType() == PumpControlType::DIMMER) {
-        if (((millis() - lastBrewEvent) > brewEventInterval) && (machineState == kBrew) && (!mqttUpdateRunning && !hassioUpdateRunning && !displayBufferReady && !temperatureUpdateRunning)) {
+        if ((machineState != kBrew && lastmachinestatehtml == kBrew) ||
+            (((millis() - lastBrewEvent) > brewEventInterval) && (machineState == kBrew) && (!mqttUpdateRunning && !hassioUpdateRunning && !displayBufferReady && !temperatureUpdateRunning))) {
             websiteUpdateRunning = true;
 
             // send brew data to website endpoint
@@ -1460,6 +1457,11 @@ void loopPid() {
 
             lastBrewEvent = millis();
         }
+    }
+
+    if ((machineState != kBrew) && (lastmachinestatehtml == kBrew)) {
+        stopBrewEvent();
+        lastmachinestatehtml = machineState;
     }
 
     // refresh website if loop does not have another long running process already

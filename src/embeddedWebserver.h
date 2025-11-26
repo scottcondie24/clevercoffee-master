@@ -501,17 +501,7 @@ inline void serverSetup() {
         request->send(response);
     });
 
-    server.on("/graph", HTTP_GET, [](AsyncWebServerRequest* request) 
-    { 
-        activeHttpRequests++;
-        LOGF(DEBUG, "Active requests count: %i", activeHttpRequests);
-        request->onDisconnect([](){ 
-            activeHttpRequests--; 
-            LOGF(DEBUG, "Active requests count: %i", activeHttpRequests);
-        });
-
-        request->send(LittleFS, "/graph.html", "text/html"); 
-    });
+    server.on("/graph", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(LittleFS, "/graph.html", "text/html"); });
 
     server.on("/wifireset", HTTP_POST, [](AsyncWebServerRequest* request) {
         if (!authenticate(request)) {
@@ -729,14 +719,13 @@ void sendBrewEvent(float time, float inputPressure, float setPressure, float pum
     doc["currBrewWeight"] = currBrewWeight;
     doc["dimmerPower"] = dimmerPower;
 
-    String jsonBrew;
-    serializeJson(doc, jsonBrew);
-
-    events.send(jsonBrew.c_str(), "brew_event", millis());
-    // LOGF(DEBUG, "%s", jsonTemps.c_str());
+    char jsonBuf[256];
+    size_t len = serializeJson(doc, jsonBuf, sizeof(jsonBuf));
+    events.send(jsonBuf, "brew_event", millis());
+    // LOGF(DEBUG, "%s", jsonBuf);
 }
 
-void sendBrewMetadata(String profile, String phase, String profileDesc, String phaseDesc, String control, String autoStop) {
+void sendBrewMetadata(const char* profile, const char* phase, const char* profileDesc, const char* phaseDesc, const char* control, const char* autoStop) {
     JsonDocument doc;
 
     doc["profile"] = profile;
@@ -746,11 +735,10 @@ void sendBrewMetadata(String profile, String phase, String profileDesc, String p
     doc["control"] = control;
     doc["autoStop"] = autoStop;
 
-    String jsonBrewMeta;
-    serializeJson(doc, jsonBrewMeta);
-
-    events.send(jsonBrewMeta.c_str(), "brew_meta", millis());
-    // LOGF(DEBUG, "%s", jsonTemps.c_str());
+    char jsonBuf[1024];
+    size_t len = serializeJson(doc, jsonBuf, sizeof(jsonBuf));
+    events.send(jsonBuf, "brew_meta", millis());
+    // LOGF(DEBUG, "%s", jsonBuf);
 }
 
 void startBrewEvent() {
