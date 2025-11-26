@@ -115,20 +115,27 @@ inline void displayWiFiStatus(const int x, const int y) {
  * @brief Draw an MQTT status indicator at the given coordinates if MQTT is enabled
  */
 inline void displayMQTTStatus(const int x, const int y) {
+    u8g2->setCursor(x, y);
+    u8g2->setFont(u8g2_font_profont11_tf);
+    
     if (mqtt_enabled) {
         if (mqtt.connected() == 1) {
-            u8g2->setCursor(x, y);
-            u8g2->setFont(u8g2_font_profont11_tf);
-            u8g2->print("MQTT");
+            u8g2->print("+");
+        }
+    }
+        //u8g2->print("MQTT");
+    u8g2->print(ESP.getFreeHeap());
+    u8g2->print(" ");
+    u8g2->print(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
 
-            if (getSignalStrength() <= 1) {
-                u8g2->print("!");
-            }
-        }
-        else {
-            u8g2->setCursor(x, y);
-            u8g2->print("");
-        }
+    if (getSignalStrength() <= 1) {
+        u8g2->print("!");
+    }
+    if (activeHttpRequests > 0) {
+        u8g2->print(".");
+    }
+    if (heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT) < 10000) {
+        u8g2->print("-");
     }
 }
 
@@ -420,8 +427,8 @@ inline void displayStatusbar() {
         displayBluetoothStatus(24, 1);
     }
 
-    const auto format = "%02luh %02lum";
-    displayUptime(84, 0, format);
+    //const auto format = "%02luh %02lum";
+    //displayUptime(84, 0, format);
 }
 
 /**

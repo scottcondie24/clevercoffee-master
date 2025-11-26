@@ -189,19 +189,22 @@ BrewProfile* loadProfileByName(const String& name) {
 }
 
 void clearCurrentProfile() {
-    if (!currentProfile) {
-        return;
-    }
+    if (!currentProfile) return;
 
     if (currentProfile->phases) {
         for (int i = 0; i < currentProfile->phaseCount; ++i) {
-            free((void*)currentProfile->phases[i].name);
+            BrewPhase& p = currentProfile->phases[i];
+
+            if (p.name)        free((void*)p.name);
+            if (p.description) free((void*)p.description);
         }
 
         delete[] currentProfile->phases;
     }
 
-    free((void*)currentProfile->name);
+    if (currentProfile->name)        free((void*)currentProfile->name);
+    if (currentProfile->description) free((void*)currentProfile->description);
+
     delete currentProfile;
     currentProfile = nullptr;
 }

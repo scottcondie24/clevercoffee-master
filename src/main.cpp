@@ -1358,7 +1358,7 @@ void loopPid() {
             wifiWasConnected = true;
         }
 
-        if (mqtt_enabled) {
+        if (mqtt_enabled && activeHttpRequests == 0 && heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT) > 10000) {
             mqttUpdateRunning = false;
 
             if (getSignalStrength() > 1) {

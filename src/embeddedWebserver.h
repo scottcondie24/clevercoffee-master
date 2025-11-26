@@ -32,7 +32,10 @@ static int16_t tempHistory[3][HISTORY_LENGTH] = {};
 inline int historyCurrentIndex = 0;
 inline int historyValueCount = 0;
 
+volatile int activeHttpRequests = 0;
+
 void serverSetup();
+
 
 inline bool authenticate(AsyncWebServerRequest* request) {
     if (!config.get<bool>("system.auth.enabled")) {
@@ -259,6 +262,13 @@ inline void serverSetup() {
     }
 
     server.on("/parameters", [](AsyncWebServerRequest* request) {
+        activeHttpRequests++;
+        LOGF(DEBUG, "Active requests count: %i", activeHttpRequests);
+        request->onDisconnect([](){ 
+            activeHttpRequests--; 
+            LOGF(DEBUG, "Active requests count: %i", activeHttpRequests);
+        });
+
         if (!request->client() || !request->client()->connected()) {
             return;
         }
@@ -423,6 +433,13 @@ inline void serverSetup() {
     });
 
     server.on("/temperatures", HTTP_GET, [](AsyncWebServerRequest* request) {
+        activeHttpRequests++;
+        LOGF(DEBUG, "Active requests count: %i", activeHttpRequests);
+        request->onDisconnect([](){ 
+            activeHttpRequests--; 
+            LOGF(DEBUG, "Active requests count: %i", activeHttpRequests);
+        });
+
         AsyncResponseStream* response = request->beginResponseStream("application/json");
         response->print('{');
         response->print("\"currentTemp\":");
@@ -436,6 +453,13 @@ inline void serverSetup() {
     });
 
     server.on("/timeseries", HTTP_GET, [](AsyncWebServerRequest* request) {
+        activeHttpRequests++;
+        LOGF(DEBUG, "Active requests count: %i", activeHttpRequests);
+        request->onDisconnect([](){ 
+            activeHttpRequests--; 
+            LOGF(DEBUG, "Active requests count: %i", activeHttpRequests);
+        });
+
         AsyncResponseStream* response = request->beginResponseStream("application/json");
         response->addHeader("Connection", "close"); // Force connection close
 
@@ -477,7 +501,17 @@ inline void serverSetup() {
         request->send(response);
     });
 
-    server.on("/graph", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(LittleFS, "/graph.html", "text/html"); });
+    server.on("/graph", HTTP_GET, [](AsyncWebServerRequest* request) 
+    { 
+        activeHttpRequests++;
+        LOGF(DEBUG, "Active requests count: %i", activeHttpRequests);
+        request->onDisconnect([](){ 
+            activeHttpRequests--; 
+            LOGF(DEBUG, "Active requests count: %i", activeHttpRequests);
+        });
+
+        request->send(LittleFS, "/graph.html", "text/html"); 
+    });
 
     server.on("/wifireset", HTTP_POST, [](AsyncWebServerRequest* request) {
         if (!authenticate(request)) {
@@ -496,6 +530,13 @@ inline void serverSetup() {
     });
 
     server.on("/download/config", HTTP_GET, [](AsyncWebServerRequest* request) {
+        activeHttpRequests++;
+        LOGF(DEBUG, "Active requests count: %i", activeHttpRequests);
+        request->onDisconnect([](){  
+            activeHttpRequests--; 
+            LOGF(DEBUG, "Active requests count: %i", activeHttpRequests);
+        });
+
         if (!authenticate(request)) {
             return request->requestAuthentication();
         }
@@ -629,11 +670,11 @@ inline void serverSetup() {
 
     // serve static files
     LittleFS.begin();
-    server.serveStatic("/css", LittleFS, "/css/", "max-age=604800"); // cache for one week
-    server.serveStatic("/js", LittleFS, "/js/", "max-age=604800");
-    server.serveStatic("/img", LittleFS, "/img/", "max-age=604800"); // cache for one week
-    server.serveStatic("/webfonts", LittleFS, "/webfonts/", "max-age=604800");
-    server.serveStatic("/manifest.json", LittleFS, "/manifest.json", "max-age=604800");
+    server.serveStatic("/css", LittleFS, "/css/", "max-age=604800").setCacheControl("no-cache"); // cache for one week
+    server.serveStatic("/js", LittleFS, "/js/", "max-age=604800").setCacheControl("no-cache");
+    server.serveStatic("/img", LittleFS, "/img/", "max-age=604800").setCacheControl("no-cache"); // cache for one week
+    server.serveStatic("/webfonts", LittleFS, "/webfonts/", "max-age=604800").setCacheControl("no-cache");
+    server.serveStatic("/manifest.json", LittleFS, "/manifest.json", "max-age=604800").setCacheControl("no-cache");
     server.serveStatic("/", LittleFS, "/html/", "max-age=604800").setDefaultFile("index.html").setTemplateProcessor(staticProcessor);
 
     server.begin();
@@ -671,7 +712,7 @@ inline void sendTempEvent(const double currentTemp, const double targetTemp, con
         skippedValues++;
     }
 
-    if (events.count() > 0) {
+    if (events.count() > 0 && activeHttpRequests == 0 && heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT) > 10000) {
         events.send("ping", nullptr, millis());
         events.send(getTempString().c_str(), "new_temps", millis());
     }

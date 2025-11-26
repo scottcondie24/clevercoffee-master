@@ -64,7 +64,7 @@ void encoderHandler() {
                         break;
 
                     case PROFILE:
-                        config.set<int>("dimmer.profile", constrain(config.get<int>("dimmer.profile") + delta, 0, 11));
+                        config.set<int>("dimmer.profile", constrain(config.get<int>("dimmer.profile") + delta, 0, 9));
                         break;
 
                     default:
