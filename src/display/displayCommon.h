@@ -322,14 +322,17 @@ inline void displayBrewWeight(const int x, const int y, const float weight, cons
             u8g2->print(langstring_scale_Failure);
             return;
         }
-
-        u8g2->setCursor(x, y);
-        u8g2->print(langstring_weight_ur);
-        u8g2->print(weight, 0);
-
         if (setpoint > 0) {
+            u8g2->setCursor(x, y);
+            u8g2->print(langstring_weight_ur);
+            u8g2->print(weight, 0);
             u8g2->print("/");
             u8g2->print(setpoint, 0);
+        }
+        else {
+            u8g2->setCursor(x, y);
+            u8g2->print(langstring_weight_ur);
+            u8g2->print(weight, 2);
         }
 
         u8g2->print(" g");
@@ -349,8 +352,18 @@ inline void displayBrewWeight(const int x, const int y, const float weight, cons
         u8g2->print(weight, 0);
 
         if (setpoint > 0) {
+            u8g2->setCursor(x, y);
+            u8g2->print(langstring_weight);
+            u8g2->setCursor(x + 50, y);
+            u8g2->print(weight, 0);
             u8g2->print("/");
             u8g2->print(setpoint, 0);
+        }
+        else {
+            u8g2->setCursor(x, y);
+            u8g2->print(langstring_weight);
+            u8g2->setCursor(x + 50, y);
+            u8g2->print(weight, 2);
         }
 
         u8g2->print(" g");
@@ -733,12 +746,12 @@ inline bool displayMachineState() {
     }
 
     if (displayProfileDescription) {
-        String msg = String(currentProfile->description) + "\n";
+        String msg = String(currentProfile.description) + "\n";
 
-        for (int i = 0; i < currentProfile->phaseCount; i++) {
+        for (int i = 0; i < currentProfile.phaseCount; i++) {
             msg += "Phase " + String(i + 1) + ": ";
-            msg += String(currentProfile->phases[i].name) + "\n"; // first phase name
-            msg += String(currentProfile->phases[i].description) + "\n\n";
+            msg += String(currentProfile.phases[i].name) + "\n"; // first phase name
+            msg += String(currentProfile.phases[i].description) + "\n\n";
         }
 
         displayWrappedMessage(msg, 0, descriptionScrollY);
@@ -964,13 +977,13 @@ void displayScrollingSubstring(int x, int y, int displayWidth, const char* text,
 }
 
 void drawEncoderControlLabel() {
-    // u8g2->print(menuLevel == 1 ? ">" : " ");
-    u8g2->print(" ");
-    u8g2->print((machineState == kBrew) ? (autoStop ? "Auto Stop" : "Manual") : dimmerModes[config.get<int>("dimmer.mode")]);
+    int mode = config.get<int>("dimmer.mode");
+    u8g2->print(menuLevel == 2 ? ">" : " ");
+    u8g2->print((machineState == kBrew) && (mode == PROFILE) ? (autoStop ? "Auto Stop" : "Manual") : dimmerModes[mode]);
 }
 
 void drawEncoderControlValue() {
-    // u8g2->print(menuLevel == 2 ? ">" : " ");
+    u8g2->print(menuLevel == 3 ? ">" : " ");
     switch (config.get<int>("dimmer.mode")) {
         case POWER:
             u8g2->print(config.get<float>("dimmer.setpoint.power"), 0);

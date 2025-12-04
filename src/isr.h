@@ -16,7 +16,7 @@ unsigned long windowStartTime;
 unsigned int windowSize = 1000;
 
 void IRAM_ATTR onTimer() {
-    timerAlarmWrite(timer, 10000, true);
+    //timerAlarmWrite(timer, 10000, true);
 
     if (pidOutput <= isrCounter) {
         heaterRelay->off();
