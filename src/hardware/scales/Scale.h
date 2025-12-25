@@ -6,6 +6,11 @@
 
 #pragma once
 
+struct Weights {
+    float w1 = 0;
+    float w2 = 0;
+};
+
 /**
  * @brief Abstract base class for scale implementations
  */
@@ -30,6 +35,8 @@ class Scale {
          * @return Weight in grams
          */
         [[nodiscard]] virtual float getWeight() const = 0;
+
+        virtual Weights getDebugWeight() const;
 
         /**
          * @brief Tare the scale (set current weight as zero point)

@@ -112,6 +112,10 @@ float HX711Scale::getWeight() const {
     return currentWeight;
 }
 
+Weights HX711Scale::getDebugWeight() const {
+    return { weight1, weight2 };
+}
+
 void HX711Scale::tare() {
     loadCell1->tare();
     loadCell1->setCalFactor(calibrationFactor1);

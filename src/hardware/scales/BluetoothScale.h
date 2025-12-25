@@ -20,6 +20,7 @@ class BluetoothScale : public Scale {
         bool init() override;
         bool update() override;
         [[nodiscard]] float getWeight() const override;
+        Weights getDebugWeight() const override;
         void tare() override;
         void setSamples(int samples) override;
         [[nodiscard]] bool isConnected() const override;

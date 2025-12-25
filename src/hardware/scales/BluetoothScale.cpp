@@ -112,6 +112,10 @@ float BluetoothScale::getWeight() const {
     return currentWeight;
 }
 
+Weights BluetoothScale::getDebugWeight() const {
+    return { currentWeight, 0 };
+}
+
 void BluetoothScale::tare() {
     if (connected) {
         bleScale->tare();

@@ -347,26 +347,27 @@ inline void displayBrewWeight(const int x, const int y, const float weight, cons
         }
 
         u8g2->setCursor(x, y);
-        u8g2->print(langstring_weight);
-        u8g2->setCursor(x + 50, y);
-        u8g2->print(weight, 0);
-
-        if (setpoint > 0) {
-            u8g2->setCursor(x, y);
-            u8g2->print(langstring_weight);
+        
+        if(config.get<float>("brew.setpoint") == 20.0) {
+            u8g2->print(scale->getDebugWeight().w1, 1);
             u8g2->setCursor(x + 50, y);
-            u8g2->print(weight, 0);
-            u8g2->print("/");
-            u8g2->print(setpoint, 0);
+            u8g2->print(scale->getDebugWeight().w2, 1);
         }
         else {
-            u8g2->setCursor(x, y);
             u8g2->print(langstring_weight);
             u8g2->setCursor(x + 50, y);
-            u8g2->print(weight, 2);
-        }
 
-        u8g2->print(" g");
+            if (setpoint > 0) {
+                u8g2->print(weight, 0);
+                u8g2->print("/");
+                u8g2->print(setpoint, 0);
+            }
+            else {
+                u8g2->print(weight, 2);
+            }
+
+            u8g2->print(" g");
+        }
     }
 }
 
