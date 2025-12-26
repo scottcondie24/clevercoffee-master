@@ -77,7 +77,7 @@ void dimmerModeHandler() {
             profileName = currentProfile.name;
             profileDescription = currentProfile.description;
             autoStop = currentProfile.stop && config.get<bool>("hardware.sensors.scale.enabled");
-            lastBrewSetpoint = brewSetpoint;
+            //lastBrewSetpoint = brewSetpoint;
             LOGF(INFO, "Profile Index: %i -- Profile Name: %s", currentProfileIndex, profileName);
         }
         else {
@@ -88,9 +88,9 @@ void dimmerModeHandler() {
         }
     }
     else {
-        if (lastBrewSetpoint > 0) {
-            brewSetpoint = lastBrewSetpoint;
-        }
+        //if (lastBrewSetpoint > 0) {
+        //    brewSetpoint = lastBrewSetpoint;
+        //}
     }
 
     updateMetadata = true;
