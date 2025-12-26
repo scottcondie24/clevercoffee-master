@@ -260,6 +260,7 @@ inline bool brew() {
                 startingTime = millis();
                 currBrewTime = 0;   // reset currBrewTime, last brew is still stored
                 currBrewWeight = 0; // reset currBrewWeight for new brew
+                postBrewWeight = 0;
 
                 LOG(INFO, "Brew started");
 

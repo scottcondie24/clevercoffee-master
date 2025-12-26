@@ -13,6 +13,7 @@
 
 void displayScaleFailed();
 void displayWrappedMessage(const String& message, int x = 0, int startY = 0, int spacing = 2, boolean clearSend = true, boolean wrapWord = false);
+bool shouldDisplayBrewTimer();
 
 inline bool scaleCalibrationOn = false;
 inline bool scaleTareOn = false;
@@ -20,6 +21,7 @@ inline int shottimerCounter = 10;
 inline float currReadingWeight = 0; // current weight reading
 inline float preBrewWeight = 0;     // weight before brew started
 inline float currBrewWeight = 0;    // weight of current brew
+inline float postBrewWeight = 0;    // weight dripped after brew
 inline float scaleDelayValue = 2.5; // delay compensation in grams
 inline bool scaleFailure = false;
 inline bool autoTareInProgress = false;
@@ -320,9 +322,17 @@ inline void shotTimerScale() {
             break;
 
         case 20:
-            currBrewWeight = currReadingWeight - preBrewWeight;
+            
 
-            if (currBrewState == kBrewIdle) {
+            if(shouldDisplayBrewTimer()) {
+                if(currBrewState != kBrewIdle) {
+                    currBrewWeight = currReadingWeight - preBrewWeight;
+                }
+                else {
+                    postBrewWeight = currReadingWeight - preBrewWeight - currBrewWeight;
+                }
+            }
+            else if (currBrewState == kBrewIdle) {
                 shottimerCounter = 10;
 
                 // Reset fallback state when brew ends
