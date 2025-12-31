@@ -39,7 +39,7 @@
 #define BACKFLUSH_CYCLES         5                 // number of cycles the backflush should run
 #define BACKFLUSH_FILL_TIME      5.0               // time in seconds the pump is running during backflush
 #define BACKFLUSH_FLUSH_TIME     10.0              // time in seconds the 3-way valve is open during backflush
-#define POST_BREW_TIMER_DURATION 3.0               // time in seconds that brew timer will be shown after brew finished
+#define POST_BREW_TIMER_DURATION 6.0               // time in seconds that brew timer will be shown after brew finished
 #define BLINKING_DELTA           0.3               // distance between measured temperature and setpoint to enable display blinking
 #define MAXWIFIRECONNECTS        5                 // maximum number of reconnection attempts, use -1 to deactivate
 #define WIFICONNECTIONDELAY      10000             // delay between reconnects in ms
