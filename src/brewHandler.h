@@ -332,9 +332,10 @@ inline bool brew() {
                 }
                 else if (scale && config.get<bool>("hardware.sensors.scale.enabled")) {
                     const auto targetBrewWeight = ParameterRegistry::getInstance().getParameterById("brew.by_weight.target_weight")->getValueAs<float>();
+                    float weightOffset = constrain(0.3334 * flowRate + 1.1173, 0, 3);
 
-                    if (currBrewWeight > targetBrewWeight && brewByWeightEnabled) {
-                        LOG(INFO, "Brew reached weight target");
+                    if (currBrewWeight > (targetBrewWeight - weightOffset) && brewByWeightEnabled) {
+                        LOGF(INFO, "Brew reached weight target of %0.1fg", targetBrewWeight - weightOffset);
                         currBrewState = kBrewFinished;
                     }
                 }
