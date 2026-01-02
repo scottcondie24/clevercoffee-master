@@ -112,7 +112,8 @@ inline void printScreen() {
         drawEncoderControlLabel();
         u8g2->setCursor(32, 55);
         u8g2->print(pumpFlowRate, 1);
-        u8g2->print(" mL/s ");
+        u8g2->print(" ");
+        u8g2->print(flowRate, 1);
         drawEncoderControlValue();
         u8g2->setFont(u8g2_font_profont11_tf);
     }

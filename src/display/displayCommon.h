@@ -355,9 +355,9 @@ inline void displayBrewWeight(const int x, const int y, const float weight, cons
         }
         else {
             if(shouldDisplayBrewTimer() && currBrewState == kBrewIdle) {
-                u8g2->print(weight, 2);
+                u8g2->print(stoppedWeight, 2);
                 u8g2->setCursor(x + 50, y);
-                u8g2->print(postBrewWeight, 2);
+                u8g2->print(weight, 2);
             }
             else {
                 u8g2->print(langstring_weight);

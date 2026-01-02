@@ -260,7 +260,6 @@ inline bool brew() {
                 startingTime = millis();
                 currBrewTime = 0;   // reset currBrewTime, last brew is still stored
                 currBrewWeight = 0; // reset currBrewWeight for new brew
-                postBrewWeight = 0;
 
                 LOG(INFO, "Brew started");
 
@@ -336,9 +335,12 @@ inline bool brew() {
                 }
                 else if (config.get<bool>("hardware.sensors.scale.enabled")) {
                     const auto targetBrewWeight = ParameterRegistry::getInstance().getParameterById("brew.by_weight.target_weight")->getValueAs<float>();
+                    //float weightOffset = constrain(0.3334 * flowRate + 1.1173, 0, 3);
+                    float weightOffset = constrain(0.94051 * flowRate + 0.28504, 0, 3);	
 
-                    if (currBrewWeight > targetBrewWeight && brewByWeightEnabled) {
-                        LOG(INFO, "Brew reached weight target");
+
+                    if (currBrewWeight > (targetBrewWeight - weightOffset) && brewByWeightEnabled) {
+                        LOGF(INFO, "Brew reached weight target of %0.2fg, flow rate used %0.2fg/s", targetBrewWeight - weightOffset, flowRate);
                         currBrewState = kBrewFinished;
                     }
                 }
