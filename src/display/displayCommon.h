@@ -355,9 +355,9 @@ inline void displayBrewWeight(const int x, const int y, const float weight, cons
         }
         else {
             if(shouldDisplayBrewTimer() && currBrewState == kBrewIdle) {
-                u8g2->print(weight, 2);
+                u8g2->print(stoppedWeight, 2);
                 u8g2->setCursor(x + 50, y);
-                u8g2->print(postBrewWeight, 2);
+                u8g2->print(weight, 2);
             }
             else {
                 u8g2->print(langstring_weight);
@@ -633,10 +633,15 @@ inline bool displayFullscreenBrewTimer() {
     if (shouldDisplayBrewTimer()) {
         u8g2->clearBuffer();
 
+        const bool scaleEnabled = config.get<bool>("hardware.sensors.scale.enabled");
+        const bool brewByTimeEnabled = config.get<bool>("brew.by_time.enabled") && config.get<int>("brew.mode") == 1;
+        const bool brewByWeightEnabled = config.get<bool>("brew.by_weight.enabled") && config.get<int>("brew.mode") == 1;
+        const bool pressureEnabled = config.get<bool>("hardware.sensors.pressure.enabled");
+
         if (config.get<int>("display.template") == 4) {
             u8g2->drawXBMP(12, 12, Brew_Cup_Logo_width, Brew_Cup_Logo_height, Brew_Cup_Logo);
 
-            if (config.get<bool>("hardware.sensors.scale.enabled")) {
+            if (scale && scaleEnabled) {
                 u8g2->setFont(u8g2_font_profont22_tr);
                 u8g2->setCursor(5, 70);
                 u8g2->print(currBrewTime / 1000, 1);
@@ -653,15 +658,54 @@ inline bool displayFullscreenBrewTimer() {
         else {
             u8g2->drawXBMP(-1, 11, Brew_Cup_Logo_width, Brew_Cup_Logo_height, Brew_Cup_Logo);
 
-            if (config.get<bool>("hardware.sensors.scale.enabled")) {
+            if (scale && scaleEnabled) {
+                int xOffset = 64;
+
+                if (brewByTimeEnabled || brewByWeightEnabled || pressureEnabled) {
+                    xOffset = 50;
+                }
+
+                u8g2->setCursor(xOffset, 4);
                 u8g2->setFont(u8g2_font_profont22_tr);
-                u8g2->setCursor(64, 15);
+
+                if(currBrewTime < 9950) {
+                    u8g2->print(" ");
+                }
+
                 u8g2->print(currBrewTime / 1000, 1);
+
+                if (brewByTimeEnabled) {
+                    u8g2->setFont(u8g2_font_profont11_tr);
+                    u8g2->setCursor(108, 11);
+                    u8g2->print(config.get<float>("brew.by_time.target_time"), 0);
+                }
+
                 u8g2->print("s");
-                u8g2->setCursor(64, 38);
+                u8g2->setCursor(xOffset, 27);
+                u8g2->setFont(u8g2_font_profont22_tr);
+
+                if(currBrewWeight < 9.95 && currBrewWeight >= 0) {
+                    u8g2->print(" ");
+                }
+
                 u8g2->print(currBrewWeight, 1);
+
+                if (brewByWeightEnabled) {
+                    u8g2->setFont(u8g2_font_profont11_tr);
+                    u8g2->setCursor(108, 34);
+                    u8g2->print(config.get<float>("brew.by_weight.target_weight"), 0);
+                }
+
                 u8g2->print("g");
-                u8g2->setFont(u8g2_font_profont11_tf);
+                u8g2->setFont(u8g2_font_profont11_tr);
+                u8g2->setCursor(xOffset, 53);
+                u8g2->print(flowRate, 1);
+                u8g2->print("g/s ");
+
+                if (pressureEnabled) {
+                    u8g2->print(inputPressureFilter, 1);
+                    u8g2->print("bar");
+                }
             }
             else {
                 displayBrewtimeFs(48, 25, currBrewTime);

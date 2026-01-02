@@ -283,11 +283,10 @@
       },
       {
         "name": "hold",
-        "description": "infuse at 3 bars until flow drops below 1mL/s or 12 seconds",
+        "description": "infuse at 3 bars for 4 seconds",
         "pressure": 3,
-        "exit_flow_under": 1,
-        "seconds": 12,
-        "exit_type": "flow_under",
+        "seconds": 4,
+        "exit_type": "none",
         "transition": "fast",
         "pump": "pressure"
       },
@@ -419,9 +418,9 @@
     "phases": [
       {
         "name": "fill",
-        "description": "fill until pressure is over 2.5 bars",
+        "description": "fill until pressure is over 3 bars",
         "flow": 8,
-        "exit_pressure_over": 2.5,
+        "exit_pressure_over": 3.0,
         "seconds": 15,
         "exit_type": "pressure_over",
         "transition": "fast",
@@ -429,11 +428,10 @@
       },
       {
         "name": "hold",
-        "description": "3 bars infusion for 12 seconds or until flow reduces below 0.9mL/s",
+        "description": "3 bars infusion for 4 seconds",
         "pressure": 3,
-        "exit_flow_under": 0.9,
-        "seconds": 12,
-        "exit_type": "flow_under",
+        "seconds": 4,
+        "exit_type": "none",
         "transition": "fast",
         "pump": "pressure"
       },
