@@ -1110,7 +1110,7 @@ void ParameterRegistry::initialize(Config& config) {
         [] { return true; },
         true
     );
-
+#ifdef BOARD_ESP32_CLASSIC
     addBoolConfigParam(
         "hardware.leds.steam.enabled",
         "Enable Steam LED",
@@ -1132,9 +1132,8 @@ void ParameterRegistry::initialize(Config& config) {
         [] { return true; },
         true
     );
-
-#ifdef BOARD_ESP32_S3
-    addBoolConfigParam(
+#endif
+    /*addBoolConfigParam(
         "hardware.leds.hotwater.enabled",
         "Enable Hot Water LED",
         sHardwareLedSection,
@@ -1154,8 +1153,7 @@ void ParameterRegistry::initialize(Config& config) {
         "Invert the hot water LED logic (for common anode LEDs)",
         [] { return true; },
         true
-    );
-#endif
+    );*/
 
     // Sensors
     addEnumConfigParam(

@@ -996,25 +996,41 @@ void setup() {
     if (config.get<bool>("hardware.switches.power.enabled")) {
         const auto type = static_cast<Switch::Type>(config.get<int>("hardware.switches.power.type"));
         const auto mode = static_cast<Switch::Mode>(config.get<int>("hardware.switches.power.mode"));
+#ifdef BOARD_ESP32_S3
+        powerSwitch = new IOSwitch(PIN_POWERSWITCH, (mode == Switch::NORMALLY_OPEN ? GPIOPin::IN_PULLDOWN : GPIOPin::IN_PULLUP), type, mode, mode);
+#else
         powerSwitch = new IOSwitch(PIN_POWERSWITCH, GPIOPin::IN_HARDWARE, type, mode, mode);
+#endif
     }
 
     if (config.get<bool>("hardware.switches.steam.enabled")) {
         const auto type = static_cast<Switch::Type>(config.get<int>("hardware.switches.steam.type"));
         const auto mode = static_cast<Switch::Mode>(config.get<int>("hardware.switches.steam.mode"));
+#ifdef BOARD_ESP32_S3
+        steamSwitch = new IOSwitch(PIN_STEAMSWITCH, (mode == Switch::NORMALLY_OPEN ? GPIOPin::IN_PULLDOWN : GPIOPin::IN_PULLUP), type, mode, mode);
+#else
         steamSwitch = new IOSwitch(PIN_STEAMSWITCH, GPIOPin::IN_HARDWARE, type, mode, mode);
+#endif
     }
 
     if (config.get<bool>("hardware.switches.brew.enabled")) {
         const auto type = static_cast<Switch::Type>(config.get<int>("hardware.switches.brew.type"));
         const auto mode = static_cast<Switch::Mode>(config.get<int>("hardware.switches.brew.mode"));
+#ifdef BOARD_ESP32_S3
+        brewSwitch = new IOSwitch(PIN_BREWSWITCH, (mode == Switch::NORMALLY_OPEN ? GPIOPin::IN_PULLDOWN : GPIOPin::IN_PULLUP), type, mode, mode);
+#else
         brewSwitch = new IOSwitch(PIN_BREWSWITCH, GPIOPin::IN_HARDWARE, type, mode, mode);
+#endif
     }
 
     if (config.get<bool>("hardware.switches.hot_water.enabled")) {
         const auto type = static_cast<Switch::Type>(config.get<int>("hardware.switches.hot_water.type"));
         const auto mode = static_cast<Switch::Mode>(config.get<int>("hardware.switches.hot_water.mode"));
+#ifdef BOARD_ESP32_S3
+        hotWaterSwitch = new IOSwitch(PIN_WATERSWITCH, (mode == Switch::NORMALLY_OPEN ? GPIOPin::IN_PULLDOWN : GPIOPin::IN_PULLUP), type, mode, mode);
+#else
         hotWaterSwitch = new IOSwitch(PIN_WATERSWITCH, GPIOPin::IN_HARDWARE, type, mode, mode);
+#endif
     }
 
     if (config.get<bool>("hardware.leds.status.enabled")) {
@@ -1030,22 +1046,20 @@ void setup() {
         brewLed = new StandardLED(*brewLedPin, inverted);
         brewLed->turnOff();
     }
-
+#ifdef BOARD_ESP32_CLASSIC
     if (config.get<bool>("hardware.leds.steam.enabled")) {
         const bool inverted = config.get<bool>("hardware.leds.steam.inverted");
         steamLedPin = new GPIOPin(PIN_STEAMLED, GPIOPin::OUT);
         steamLed = new StandardLED(*steamLedPin, inverted);
         steamLed->turnOff();
     }
-
-#ifdef BOARD_ESP32_S3
-    if (config.get<bool>("hardware.leds.hotwater.enabled")) {
-        const bool inverted = config.get<bool>("hardware.leds.hotwater.inverted");
-        hotwaterLedPin = new GPIOPin(PIN_HOTWATERLED, GPIOPin::OUT);
-        hotwaterLed = new StandardLED(*hotwaterLedPin, inverted);
-        hotwaterLed->turnOff();
-    }
 #endif
+    /*    if (config.get<bool>("hardware.leds.hotwater.enabled")) {
+            const bool inverted = config.get<bool>("hardware.leds.hotwater.inverted");
+            hotwaterLedPin = new GPIOPin(PIN_HOTWATERLED, GPIOPin::OUT);
+            hotwaterLed = new StandardLED(*hotwaterLedPin, inverted);
+            hotwaterLed->turnOff();
+        }*/
 
     if (config.get<bool>("hardware.sensors.watertank.enabled")) {
         const auto mode = static_cast<Switch::Mode>(config.get<int>("hardware.sensors.watertank.mode"));

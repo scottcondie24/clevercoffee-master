@@ -347,11 +347,9 @@ class Config {
             _configDefs.emplace("hardware.leds.status.inverted", ConfigDef::forBool(false));
             _configDefs.emplace("hardware.leds.brew.enabled", ConfigDef::forBool(false));
             _configDefs.emplace("hardware.leds.brew.inverted", ConfigDef::forBool(false));
+#ifdef BOARD_ESP32_CLASSIC
             _configDefs.emplace("hardware.leds.steam.enabled", ConfigDef::forBool(false));
             _configDefs.emplace("hardware.leds.steam.inverted", ConfigDef::forBool(false));
-#ifdef BOARD_ESP32_S3
-            _configDefs.emplace("hardware.leds.hotwater.enabled", ConfigDef::forBool(false));
-            _configDefs.emplace("hardware.leds.hotwater.inverted", ConfigDef::forBool(false));
 #endif
 
             // Hardware - Sensors

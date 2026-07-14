@@ -18,34 +18,45 @@
 
 #ifdef TARGET_BOARD_ESP32_S3
 // ESP32-S3 Pin Mapping (16MB Flash, 8MB PSRAM)
-#define PIN_POWERSWITCH 38
-#define PIN_BREWSWITCH  39
-#define PIN_STEAMSWITCH 40
-#define PIN_WATERSWITCH 41
+#define PIN_POWERSWITCH 39
+#define PIN_BREWSWITCH  40
+#define PIN_STEAMSWITCH 41
+#define PIN_WATERSWITCH 42
 
-#define PIN_ROTARY_DT  4
-#define PIN_ROTARY_CLK 5
-#define PIN_ROTARY_SW  6
+#define PIN_ROTARY_DT  21
+#define PIN_ROTARY_CLK 47
+#define PIN_ROTARY_SW  0 // shared with boot mode strapping pin - high for code, low for download
 
 #define PIN_TEMPSENSOR      7
-#define PIN_WATERTANKSENSOR 15
-#define PIN_HXDAT           16
-#define PIN_HXDAT2          17
-#define PIN_HXCLK           18
+#define PIN_TEMPSENSOR2     15
+#define PIN_FLOWSENSOR      16
+#define PIN_WATERTANKSENSOR 48 // shared with onboard RGB LED
+#define PIN_HXDAT           4
+#define PIN_HXDAT2          5
+#define PIN_HXCLK           6
 
-#define PIN_VALVE  12
-#define PIN_PUMP   13
-#define PIN_HEATER 14
+#define PIN_VALVE   12
+#define PIN_PUMP    13
+#define PIN_PUMP2   10
+#define PIN_HEATER  14
+#define PIN_HEATER2 11
 
-#define PIN_STATUSLED   1
-#define PIN_BREWLED     2
-#define PIN_STEAMLED    8
-#define PIN_HOTWATERLED 21
+#define PIN_STATUSLED 18
+#define PIN_BREWLED   17
 
-#define PIN_ZC 9
+#define PIN_ZC 38
 
-#define PIN_I2CSCL 10
-#define PIN_I2CSDA 11
+#define PIN_I2CSCL 9
+#define PIN_I2CSDA 8
+
+#define PIN_SERIAL1TX 1
+#define PIN_SERIAL1RX 2
+
+// pins 43 and 44 are used for serial0, but as there is usb-cdc enabled they become available after the initial boot data is sent
+// pin 43 could be used for MOSI
+// pin 44 could be used for MISO with a 10k pullup resistor to 3.3V
+// tempsensor pin could be CS
+// pump2 could be SCK
 
 #else
 // ESP32 Classic Pin Mapping
