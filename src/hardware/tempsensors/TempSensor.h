@@ -23,8 +23,8 @@ class TempSensor {
          *          by a timer. The temperature sampling result is checked for errors and an internal error counter is kept
          *          to detect consecutive reading errors
          */
-        TempSensor() :
-            update_temperature([this] { update_temperature_reading(); }, 400) {
+        explicit TempSensor(int rate = 400) :
+            refreshRate(rate), update_temperature([this] { update_temperature_reading(); }, rate) {
         }
 
         /**
@@ -42,6 +42,16 @@ class TempSensor {
             // Trigger the timer to update the temperature:
             update_temperature();
             return average_temp_rate_;
+        }
+
+        double getAverageTemperature() {
+            // Trigger the timer to update the temperature:
+            update_temperature();
+            return average_temp_;
+        }
+
+        int getRefreshRate() {
+            return refreshRate;
         }
 
         /**
@@ -96,6 +106,7 @@ class TempSensor {
             }
         }
 
+        int refreshRate;
         Timer update_temperature;
         double last_temperature_{};
         int bad_readings_{0};
@@ -132,17 +143,25 @@ class TempSensor {
             const double totalTempChangeRateSum = std::accumulate(std::begin(tempChangeRates), std::end(tempChangeRates), 0, std::plus<>());
             average_temp_rate_ = totalTempChangeRateSum / numValues * 100;
 
-            if (valueIndex >= numValues - 1) {
-                // ...wrap around to the beginning:
-                valueIndex = 0;
+            average_temp_ = 0;
+
+            for (int i = 0; i < 4; i++) {
+                if (valueIndex - i < 0) {
+                    average_temp_ += tempValues[numValues + valueIndex - i];
+                }
+                else {
+                    average_temp_ += tempValues[valueIndex - i];
+                }
             }
-            else {
-                valueIndex++;
-            }
+
+            average_temp_ = average_temp_ * 0.25;
+
+            valueIndex = (valueIndex + 1) % numValues;
         }
 
         // Moving average:
         double average_temp_rate_{};
+        double average_temp_ = 0;
         constexpr static size_t numValues = 15;
         std::array<double, numValues> tempValues{};        // array of temp values
         std::array<unsigned long, numValues> timeValues{}; // array of time values

@@ -52,11 +52,10 @@
 #define PIN_SERIAL1TX 1
 #define PIN_SERIAL1RX 2
 
-// pins 43 and 44 are used for serial0, but as there is usb-cdc enabled they become available after the initial boot data is sent
-// pin 43 could be used for MOSI
-// pin 44 could be used for MISO with a 10k pullup resistor to 3.3V
-// tempsensor pin could be CS
-// pump2 could be SCK
+// Pin mapping for SPI
+#define PIN_SPI_MISO 44 // RX
+#define PIN_SPI_MOSI 43 // TX
+#define PIN_SPI_SCK  10 // shared with pump2
 
 #else
 // ESP32 Classic Pin Mapping

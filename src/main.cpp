@@ -35,6 +35,10 @@
 #include "hardware/pinmapping.h"
 #include "hardware/tempsensors/TempSensorDallas.h"
 #include "hardware/tempsensors/TempSensorTSIC.h"
+#ifdef BOARD_ESP32_S3
+#include "hardware/tempsensors/TempSensorMAX31856.h"
+#include "hardware/tempsensors/TempSensorMAX6675.h"
+#endif
 
 // User configuration & defaults
 #include "defaults.h"
@@ -43,6 +47,9 @@ hw_timer_t* timer = nullptr;
 
 #include "hardware/pressureSensor.h"
 #include <Wire.h>
+#ifdef BOARD_ESP32_S3
+#include <SPI.h>
+#endif
 
 Config config;
 
@@ -142,11 +149,15 @@ LED* steamLed = nullptr;
 LED* hotwaterLed = nullptr;
 
 GPIOPin* heaterRelayPin = nullptr;
+GPIOPin* heater2RelayPin = nullptr;
 GPIOPin* pumpRelayPin = nullptr;
+GPIOPin* pump2RelayPin = nullptr;
 GPIOPin* valveRelayPin = nullptr;
 
 Relay* heaterRelay = nullptr;
+Relay* heater2Relay = nullptr;
 Relay* pumpRelay = nullptr;
+Relay* pump2Relay = nullptr;
 Relay* valveRelay = nullptr;
 
 Switch* powerSwitch = nullptr;
@@ -155,6 +166,7 @@ Switch* steamSwitch = nullptr;
 Switch* hotWaterSwitch = nullptr;
 
 TempSensor* tempSensor = nullptr;
+TempSensor* tempSensor2 = nullptr;
 
 #include "isr.h"
 
@@ -213,6 +225,7 @@ double standbyModeTime = STANDBY_MODE_TIME;
 
 // Variables to hold PID values (Temp input, Heater output)
 double temperature, pidOutput;
+double temperature2 = 0.0;
 bool steamON = false;
 bool steamFirstON = false;
 
@@ -258,6 +271,10 @@ std::map<const char*, std::function<double()>, cmp_str> mqttSensors = {};
 
 unsigned long lastTempEvent = 0;
 unsigned long tempEventInterval = 1000;
+#ifdef BOARD_ESP32_S3
+unsigned long lastSerial1Send = 0;
+unsigned long serial1SendInterval = 100;
+#endif
 
 Timer hassioDiscoveryTimer(&sendHASSIODiscoveryMsg, 300000);
 
@@ -903,6 +920,9 @@ extern const char sysVersion[] = STR(AUTO_VERSION);
 void setup() {
     // Start serial console
     Serial.begin(115200);
+#ifdef BOARD_ESP32_S3
+    Serial1.begin(115200, SERIAL_8N1, PIN_SERIAL1RX, PIN_SERIAL1TX);
+#endif
 
     // Initialize the logger
     Logger::init(23);
@@ -911,9 +931,11 @@ void setup() {
         LOG(ERROR, "Failed to load config from filesystem!");
     }
 
+#ifdef BOARD_ESP32_CLASSIC
     if (config.get<bool>("hardware.leds.steam.enabled")) {
         LOG(WARNING, "Steam LED interferes with USB console communication");
     }
+#endif
 
     hostname = config.get<String>("system.hostname");
 
@@ -1176,6 +1198,13 @@ void setup() {
     bPID.SetMode(AUTOMATIC);
 
     const int tempSensorType = config.get<int>("hardware.sensors.temperature.type");
+#ifdef BOARD_ESP32_S3
+    const int tempSensor2Type = config.get<int>("hardware.sensors.temperature2.type");
+
+    if (pump2Relay == nullptr) {
+        SPI.begin(PIN_SPI_SCK, PIN_SPI_MISO, PIN_SPI_MOSI);
+    }
+#endif
 
     if (tempSensorType == 0) {
         tempSensor = new TempSensorTSIC(PIN_TEMPSENSOR);
@@ -1183,11 +1212,46 @@ void setup() {
     else if (tempSensorType == 1) {
         tempSensor = new TempSensorDallas(PIN_TEMPSENSOR);
     }
+#ifdef BOARD_ESP32_S3
+    else if (tempSensorType == 2 && pump2Relay == nullptr) {
+        tempSensor = new TempSensorMAX6675(PIN_TEMPSENSOR, &SPI, 230);
+    }
+    else if (tempSensorType == 3 && pump2Relay == nullptr) {
+        tempSensor = new TempSensorMAX31856(PIN_TEMPSENSOR, 230);
+    }
+#endif
+    else {
+        LOG(ERROR, "WARNING: Temperature sensor not initialised");
+    }
 
     if (tempSensor != nullptr) {
         temperature = tempSensor->getCurrentTemperature();
         temperature -= brewTempOffset;
     }
+
+#ifdef BOARD_ESP32_S3
+    if (config.get<bool>("hardware.sensors.temperature2.enabled")) {
+        if (tempSensor2Type == 0) {
+            tempSensor2 = new TempSensorTSIC(PIN_TEMPSENSOR2);
+        }
+        else if (tempSensor2Type == 1) {
+            tempSensor2 = new TempSensorDallas(PIN_TEMPSENSOR2);
+        }
+        else if (tempSensor2Type == 2 && pump2Relay == nullptr) {
+            tempSensor2 = new TempSensorMAX6675(PIN_TEMPSENSOR2, &SPI, 230);
+        }
+        else if (tempSensor2Type == 3 && pump2Relay == nullptr) {
+            tempSensor2 = new TempSensorMAX31856(PIN_TEMPSENSOR2, 230);
+        }
+        else {
+            LOG(ERROR, "WARNING: Temperature sensor 2 not initialised");
+        }
+
+        if (tempSensor2 != nullptr) {
+            temperature2 = tempSensor2->getCurrentTemperature();
+        }
+    }
+#endif
 
     // Initialisation MUST be at the very end of the init(), otherwise the
     // time comparision in loop() will have a big offset
@@ -1277,7 +1341,27 @@ void loopPid() {
     temperatureUpdateRunning = false;
 
     if (tempSensor != nullptr) {
-        temperature = tempSensor->getCurrentTemperature();
+#ifdef BOARD_ESP32_S3
+        if (config.get<int>("hardware.sensors.temperature.type") == 2) {
+            temperature = tempSensor->getAverageTemperature();
+        }
+        else {
+#endif
+            temperature = tempSensor->getCurrentTemperature();
+#ifdef BOARD_ESP32_S3
+        }
+#endif
+
+#ifdef BOARD_ESP32_S3
+        if (tempSensor2 != nullptr) {
+            if (config.get<int>("hardware.sensors.temperature2.type") == 2) {
+                temperature2 = tempSensor2->getAverageTemperature();
+            }
+            else {
+                temperature2 = tempSensor2->getCurrentTemperature();
+            }
+        }
+#endif
 
         if (machineState != kSteam) {
             temperature -= brewTempOffset;
@@ -1515,6 +1599,12 @@ void loopPid() {
 
         bPID.SetTunings(steamKp, 0, 0, 1);
     }
+#ifdef BOARD_ESP32_S3
+    if (millis() - lastSerial1Send > serial1SendInterval) {
+        Serial1.printf("T: %.2f, T2: %.2f, P: %.2f, W: %.2f\n", temperature, temperature2, inputPressure, currReadingWeight);
+        lastSerial1Send = millis();
+    }
+#endif
 }
 
 void loopLED() {

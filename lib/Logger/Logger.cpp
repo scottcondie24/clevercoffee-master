@@ -92,6 +92,23 @@ void Logger::log(const Level level, const String& file, const __FlashStringHelpe
         Serial.print(logmsg);
         Serial.print("\n");
     }
+#ifdef BOARD_ESP32_S3
+    if (Serial1) {
+        Serial1.print(time);
+        Serial1.print(get_level_identifier(level).c_str());
+        Serial1.print(" ");
+        if (level < Level::DEBUG) {
+            Serial1.print(file.c_str());
+            Serial1.print(":");
+            Serial1.print(line);
+            Serial1.print("@");
+            Serial1.print(function);
+            Serial1.print("() ");
+        }
+        Serial1.print(logmsg);
+        Serial1.print("\n");
+    }
+#endif
 }
 
 void Logger::logf(const Level level, const String& file, const __FlashStringHelper* function, uint32_t line, const char* format, ...) {

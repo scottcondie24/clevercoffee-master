@@ -57,7 +57,11 @@ static constexpr const char* const blinkingModes[] = {"Off", "Near Setpoint", "A
 static constexpr const char* const logLevels[] = {"TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "FATAL", "SILENT"};
 static constexpr const char* const oledTypes[] = {"SH1106 (1.3\")", "SSD1306 (0.96\")"};
 static constexpr const char* const oledAddresses[] = {"0x3C", "0x3D"};
+#ifdef BOARD_ESP32_S3
+static constexpr const char* const tempSensorTypes[] = {"TSIC306", "Dallas DS18B20", "MAX6675", "MAX31856"};
+#else
 static constexpr const char* const tempSensorTypes[] = {"TSIC306", "Dallas DS18B20"};
+#endif
 static constexpr const char* const scaleTypes[] = {"HX711 (2 load cell controllers)", "HX711 (1 load cell controller)", "Bluetooth"};
 
 void ParameterRegistry::initialize(Config& config) {
@@ -1156,6 +1160,44 @@ void ParameterRegistry::initialize(Config& config) {
     );*/
 
     // Sensors
+#ifdef BOARD_ESP32_S3
+    addEnumConfigParam(
+        "hardware.sensors.temperature.type",
+        "Temperature Sensor Type",
+        sHardwareSensorSection,
+        2401,
+        nullptr,
+        tempSensorTypes,
+        4,
+        "Type of temperature sensor connected, MAX6675 and MAX31856 requires pump2 disabled",
+        [] { return true; },
+        true
+    );
+
+    addBoolConfigParam(
+        "hardware.sensors.temperature2.enabled",
+        "Enable Temperature Sensor 2",
+        sHardwareSensorSection,
+        2402,
+        nullptr,
+        "Enable second temperature sensor",
+        [] { return true; },
+        true
+    );
+
+    addEnumConfigParam(
+        "hardware.sensors.temperature2.type",
+        "Temperature Sensor 2 Type",
+        sHardwareSensorSection,
+        2403,
+        nullptr,
+        tempSensorTypes,
+        4,
+        "Type of temperature sensor connected, MAX6675 and MAX31856 requires pump2 disabled",
+        [&config] { return config.get<bool>("hardware.sensors.temperature2.enabled"); },
+        true
+    );
+#else
     addEnumConfigParam(
         "hardware.sensors.temperature.type",
         "Temperature Sensor Type",
@@ -1168,6 +1210,7 @@ void ParameterRegistry::initialize(Config& config) {
         [] { return true; },
         true
     );
+#endif
 
     addBoolConfigParam(
         "hardware.sensors.pressure.enabled",
