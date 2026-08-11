@@ -151,6 +151,7 @@ Switch* powerSwitch = nullptr;
 Switch* brewSwitch = nullptr;
 Switch* steamSwitch = nullptr;
 Switch* hotWaterSwitch = nullptr;
+Switch* encoderSwitch = nullptr;
 
 TempSensor* tempSensor = nullptr;
 
@@ -218,6 +219,7 @@ PID bPID(&temperature, &pidOutput, &setpoint, aggKp, aggKi, aggKd, 1, DIRECT);
 
 #include "brewHandler.h"
 #include "hotWaterHandler.h"
+#include "menuHandler.h"
 
 // Other variables
 boolean emergencyStop = false;                // Emergency stop if temperature is too high
@@ -1042,6 +1044,11 @@ void setup() {
         waterTankSensor = new IOSwitch(PIN_WATERTANKSENSOR, (mode == Switch::NORMALLY_OPEN ? GPIOPin::IN_PULLDOWN : GPIOPin::IN_PULLUP), Switch::TOGGLE, mode, !mode);
     }
 
+    if (config.get<bool>("hardware.switches.encoder.enabled")) {
+        encoderSwitch = new IOSwitch(PIN_ROTARY_SW, GPIOPin::IN_PULLUP, Switch::TOGGLE, Switch::NORMALLY_CLOSED, Switch::NORMALLY_CLOSED);
+        initMenu(u8g2);
+    }
+
     if (!config.get<bool>("system.offline_mode")) { // WiFi Mode
         wiFiSetup();
         serverSetup();
@@ -1390,29 +1397,38 @@ void loopPid() {
 
     if (u8g2 != nullptr) {
 
-        // update display on loops that have not had other major tasks running, if blocked it will send in the next loop (average 0.5ms)
-        if ((!websiteUpdateRunning && !mqttUpdateRunning && !hassioUpdateRunning && !temperatureUpdateRunning) || (millis() - lastDisplayUpdate > 500)) {
+        if (menu != nullptr) {
+            if (!websiteUpdateRunning && !mqttUpdateRunning && !hassioUpdateRunning && !temperatureUpdateRunning && (standbyModeRemainingTimeDisplayOffMillis > 0)) {
+                menuLoop();
+            }
+        }
 
-            if (standbyModeRemainingTimeDisplayOffMillis > 0) {
+        if (menu == nullptr || !menu->IsOpen()) {
 
-                // displayUpdateRunning currently doesn't block anything as it is near the end of the loop, but if this code block moves it can be used to block other processes
-                // sendBuffer() takes around 35ms so it flags that it has happened
-                if (displayBufferReady) {
-                    u8g2->sendBuffer();
-                    displayBufferReady = false;
-                    displayUpdateRunning = true;
-                }
-                else {
-                    printDisplayTimer();
+            // update display on loops that have not had other major tasks running, if blocked it will send in the next loop (average 0.5ms)
+            if ((!websiteUpdateRunning && !mqttUpdateRunning && !hassioUpdateRunning && !temperatureUpdateRunning) || (millis() - lastDisplayUpdate > 500)) {
 
-                    if (millis() - lastDisplayUpdate > 500) {
+                if (standbyModeRemainingTimeDisplayOffMillis > 0) {
+
+                    // displayUpdateRunning currently doesn't block anything as it is near the end of the loop, but if this code block moves it can be used to block other processes
+                    // sendBuffer() takes around 35ms so it flags that it has happened
+                    if (displayBufferReady) {
                         u8g2->sendBuffer();
                         displayBufferReady = false;
                         displayUpdateRunning = true;
                     }
+                    else {
+                        printDisplayTimer();
+
+                        if (millis() - lastDisplayUpdate > 500) {
+                            u8g2->sendBuffer();
+                            displayBufferReady = false;
+                            displayUpdateRunning = true;
+                        }
+                    }
                 }
+                lastDisplayUpdate = millis();
             }
-            lastDisplayUpdate = millis();
         }
     }
 
