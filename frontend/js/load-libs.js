@@ -8,6 +8,7 @@ let LOAD_MODE = "auto"; // other options are local,cdn
 const allowedModes = ["local", "cdn", "auto"];
 const urlParams = new URLSearchParams(window.location.search);
 const minHeap = 8000000; // 8000000 doesn't cover the size of all files but helps delay briefly for some heap to recover
+const delayTime = 250;  // ms to delay before loading each lib, to help spread out memory usage
 
  // lightweight method to change mode at runtime. eg silvia.local/?mode=local
 if (urlParams.has("mode")) {
@@ -42,7 +43,14 @@ function runSingleCDNProbe(url, timeoutMs = 500) {
   });
 }
 
-function waitForHeap(minFreeBytes, checkInterval = 100, maxWaitMs = 2000) {
+function delayLoadTime(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+function delayLoadTime(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function waitForHeap(minFreeBytes, checkInterval = 100, maxWaitMs = 2000) {   // this proxy for heap doesn't work well enough yet
   return new Promise((resolve, reject) => {
     let resolved = false;
 
@@ -76,7 +84,8 @@ function waitForHeap(minFreeBytes, checkInterval = 100, maxWaitMs = 2000) {
 }
 
 function loadWhenFree(minFreeBytes, ...args) {
-  return waitForHeap(minFreeBytes).then(() => loadAuto(...args));
+    // return waitForHeap(minFreeBytes).then(() => loadAuto(...args));
+  return delayLoadTime(delayTime).then(() => loadAuto(...args));
 }
 
 function loadAuto(localUrl, cdnUrl, type="js", globalAssign=null) {
