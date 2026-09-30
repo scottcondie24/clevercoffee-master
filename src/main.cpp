@@ -184,7 +184,7 @@ Relay* heater2Relay = nullptr;
 Relay* pump2Relay = nullptr;
 Relay* valveRelay = nullptr;
 
-GPIOPin pumpZCPin(PIN_ZC, GPIOPin::IN_HARDWARE);
+GPIOPin pumpZCPin(PIN_ZC, GPIOPin::IN_PULLDOWN);
 GPIOPin* flowSensorPin = nullptr;
 
 Switch* powerSwitch = nullptr;

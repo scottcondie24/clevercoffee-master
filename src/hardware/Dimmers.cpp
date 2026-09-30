@@ -141,7 +141,7 @@ bool PumpDimmer::getState() const {
 }
 
 float PumpDimmer::getFrequency() const {
-    return _frequency;
+    return _avg_cycle > 0 ? 1000000.0f / _avg_cycle : 0.0f;
 }
 
 void PumpDimmer::setCalibration(float flowRate1, float flowRate2, float opvPressure) {
@@ -190,17 +190,13 @@ void PumpDimmer::measure_frequency(unsigned long current_time, unsigned long las
 
         if (_measurement_count >= 20) {
             // calculate average cycle duration
-            unsigned long avg_cycle = _total_period / _measurement_count;
+            _avg_cycle = _total_period / _measurement_count;
 
-            if (avg_cycle > 0) {
-                _frequency = 1000000.0f / (float)avg_cycle;
-            }
-
-            if (_frequency > 45.0 && _frequency < 55.0) {
+            if (_avg_cycle > 18181 && _avg_cycle <= 22222) {
                 _60hz = false;
                 _frequency_measured = true;
             }
-            else if (_frequency >= 55.0 && _frequency < 65.0) {
+            else if (_avg_cycle >= 15384 && _avg_cycle <= 18181) {
                 _60hz = true;
                 _frequency_measured = true;
             }
@@ -215,11 +211,11 @@ void PumpDimmer::measure_frequency(unsigned long current_time, unsigned long las
                 if (_60hz && adjusted == false) {
 
                     for (int i = 0; i < 9; i++) {
-                        delayLowLut[i] = (unsigned int)(delayLowLut[i] * 0.8333f);
+                        delayLowLut[i] = (delayLowLut[i] * 5) / 6;
                     }
 
                     for (int i = 0; i < 21; i++) {
-                        delayHighLut[i] = (unsigned int)(delayHighLut[i] * 0.8333f);
+                        delayHighLut[i] = (delayHighLut[i] * 5) / 6;
                     }
 
                     adjusted = true;

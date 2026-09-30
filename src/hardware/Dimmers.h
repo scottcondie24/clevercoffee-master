@@ -38,9 +38,9 @@ class PumpDimmer : public PumpControl {
         float _scaledPower;
         int _psmAccumulated;
         float _pressure;
-        bool _60hz = false;
-        float _frequency = 0.0;
-        bool _frequency_measured = false;
+        volatile bool _60hz = false;
+        volatile unsigned long _avg_cycle = 0;
+        volatile bool _frequency_measured = false;
         int _maxDelay = 5660;
         int _minDelay = 200;
         bool _state;
