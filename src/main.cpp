@@ -45,7 +45,8 @@
 
 hw_timer_t* timer = nullptr;
 
-#include "hardware/pressureSensor.h"
+//#include "hardware/pressureSensor.h"
+#include "hardware/pressureSensorAds1115.h"
 #include <Wire.h>
 #ifdef BOARD_ESP32_S3
 #include <SPI.h>
@@ -120,7 +121,7 @@ String otaPass;
 // Pressure sensor
 float inputPressure = 0;
 float inputPressureFilter = 0;
-const unsigned long intervalPressure = 100;
+const unsigned long intervalPressure = 20;
 unsigned long previousMillisPressure; // initialisation at the end of init()
 
 // timing flags
@@ -1269,6 +1270,7 @@ void setup() {
 
     if (config.get<bool>("hardware.sensors.pressure.enabled")) {
         previousMillisPressure = currentTime;
+        pressureInit();
     }
 
     if (u8g2 != nullptr) {
@@ -1478,7 +1480,8 @@ void loopPid() {
     if (config.get<bool>("hardware.sensors.pressure.enabled")) {
         if (const unsigned long currentMillisPressure = millis(); currentMillisPressure - previousMillisPressure >= intervalPressure) {
             previousMillisPressure = currentMillisPressure;
-            inputPressure = measurePressure();
+            //inputPressure = measurePressure();
+            inputPressure = measurePressureAds();
             inputPressureFilter = filterPressureValue(inputPressure);
         }
     }
