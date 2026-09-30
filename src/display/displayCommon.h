@@ -1044,13 +1044,12 @@ void displayScrollingSubstring(int x, int y, int displayWidth, const char* text,
 
 void drawEncoderControlLabel() {
     int mode = config.get<int>("dimmer.mode");
-    u8g2->print(menuLevel == 1 ? ">" : " ");
-    u8g2->print(" ");
+    u8g2->print(menuLevel == 2 ? ">" : " ");
     u8g2->print((machineState == kBrew) && (mode == PROFILE) ? (autoStop ? "Auto Stop" : "Manual") : dimmerModes[mode]);
 }
 
 void drawEncoderControlValue() {
-    u8g2->print(menuLevel == 2 ? ">" : " ");
+    u8g2->print(menuLevel == 3 ? ">" : " ");
     switch (config.get<int>("dimmer.mode")) {
         case POWER:
             u8g2->print(config.get<float>("dimmer.setpoint.power"), 0);

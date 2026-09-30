@@ -234,6 +234,7 @@ inline bool brew() {
     const bool brewByTimeEnabled = brewMode != 0 && config.get<bool>("brew.by_time.enabled");
     const bool brewByWeightEnabled = brewMode != 0 && config.get<bool>("brew.by_weight.enabled");
     const bool preinfusionEnabled = config.get<bool>("brew.pre_infusion.enabled") && !(config.get<int>("dimmer.mode") == 3); // force off if running profile
+    const bool scaleEnabled = scale && config.get<bool>("hardware.sensors.scale.enabled");
 
     // check if brewswitch was turned off after a brew; Brew only runs once even brewswitch is still pressed
     if (currBrewSwitchState == kBrewSwitchIdle) {
@@ -276,7 +277,7 @@ inline bool brew() {
                     currBrewState = kPreinfusion;
                 }
 
-                if (scale && config.get<bool>("hardware.sensors.scale.enabled") && config.get<int>("hardware.sensors.scale.type") == 2) {
+                if (scaleEnabled && config.get<int>("hardware.sensors.scale.type") == 2) {
                     const auto bleScale = static_cast<BluetoothScale*>(scale);
 
                     if (config.get<bool>("display.blescale_brew_timer")) {
@@ -333,10 +334,10 @@ inline bool brew() {
                     LOG(INFO, "Brew reached time target");
                     currBrewState = kBrewFinished;
                 }
-                else if (scale && config.get<bool>("hardware.sensors.scale.enabled")) {
+                else if (scaleEnabled && brewByWeightEnabled && !brewProfileComplete) {
                     const auto targetBrewWeight = ParameterRegistry::getInstance().getParameterById("brew.by_weight.target_weight")->getValueAs<float>();
 
-                    if (currBrewWeight > targetBrewWeight && brewByWeightEnabled) {
+                    if (currBrewWeight > targetBrewWeight) {
                         LOG(INFO, "Brew reached weight target");
                         currBrewState = kBrewFinished;
                     }
@@ -362,7 +363,7 @@ inline bool brew() {
                 currBrewState = kBrewIdle;
                 brewProfileComplete = false;
 
-                if (scale && config.get<bool>("hardware.sensors.scale.enabled") && config.get<int>("hardware.sensors.scale.type") == 2 && config.get<bool>("display.blescale_brew_timer")) {
+                if (scaleEnabled && config.get<int>("hardware.sensors.scale.type") == 2 && config.get<bool>("display.blescale_brew_timer")) {
                     static_cast<BluetoothScale*>(scale)->stopTimer();
                 }
 

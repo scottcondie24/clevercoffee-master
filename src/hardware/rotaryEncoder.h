@@ -18,16 +18,21 @@ void initEncoder() {
 }
 
 int getEncoderDelta(void) {
-    static long lastencodervalue = 0;
+    static long lastValueDelta = 0;
+    static long lastValueSent = 0;
     // long value = encoder.getCount() / 2;
-    long value = encoder.getCount() / (menuLevel == 3 ? 1 : 4);
-    int delta = value - lastencodervalue;
+    long value = -encoder.getCount();
+    int delta = (value - lastValueDelta) / (menuLevel == 4 ? 1 : 2); // smooth scroll for descriptions
+    // int delta = (value - lastValueDelta) / (menuLevel == 4 ? 1 : 4); // smooth scroll for descriptions
 
-    if (lastencodervalue != value) {
+    if (lastValueSent != value) {
         LOGF(INFO, "Rotary Encoder Value: %i", value);
+        lastValueSent = value;
     }
 
-    lastencodervalue = value;
+    if (delta != 0) {
+        lastValueDelta = value;
+    }
 
     return delta;
 }
@@ -42,9 +47,14 @@ void encoderHandler() {
     if (machineState != kBackflush) {
         if (delta != 0) {
             if (menuLevel == 1) {
-                config.set<int>("dimmer.mode", constrain(config.get<int>("dimmer.mode") + delta, 0, 3));
+                //config.set<double>("brew.setpoint", constrain(config.get<float>("brew.setpoint") + ((float)delta * 0.1), BREW_SETPOINT_MIN, BREW_SETPOINT_MAX));
+                brewSetpoint = constrain(brewSetpoint + ((float)delta * 0.1), BREW_SETPOINT_MIN, BREW_SETPOINT_MAX);
+                config.set<double>("brew.setpoint", brewSetpoint);
             }
             else if (menuLevel == 2) {
+                config.set<int>("dimmer.mode", constrain(config.get<int>("dimmer.mode") + delta, 0, 3));
+            }
+            else if (menuLevel == 3) {
                 switch (config.get<int>("dimmer.mode")) {
                     case POWER:
                         config.set<double>("dimmer.setpoint.power", constrain(config.get<float>("dimmer.setpoint.power") + delta, PUMP_POWER_SETPOINT_MIN, PUMP_POWER_SETPOINT_MAX));
@@ -66,7 +76,7 @@ void encoderHandler() {
                         break;
                 }
             }
-            else if (menuLevel == 3) {
+            else if (menuLevel == 4) {
                 if ((delta < 0) || (!blockScroll)) {
                     descriptionScrollY -= delta * 3;
 
@@ -99,8 +109,8 @@ void encoderHandler() {
                 }
             }
             else if (duration > EncoderSwitchControlInterval) { // toggle every interval
-                if ((menuLevel == 2) && (config.get<int>("dimmer.mode") == PROFILE)) {
-                    menuLevel = 3;
+                if ((menuLevel == 3) && (config.get<int>("dimmer.mode") == PROFILE)) {
+                    menuLevel = 4;
                     displayProfileDescription = !displayProfileDescription;
                     descriptionScrollY = 0;
                 }
@@ -113,11 +123,11 @@ void encoderHandler() {
             }
             else {
                 if (displayProfileDescription) {
-                    menuLevel = 2;
+                    menuLevel = 3;
                     displayProfileDescription = false;
                 }
                 else {
-                    menuLevel = (menuLevel == 1) ? 2 : 1;
+                    menuLevel = (menuLevel == 1) ? 2 : (menuLevel == 2) ? 3 : 1;
                 }
             }
 

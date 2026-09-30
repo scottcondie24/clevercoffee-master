@@ -42,6 +42,7 @@ inline void printScreen() {
     u8g2->print(setpoint, 1);
     u8g2->print(static_cast<char>(176));
     u8g2->print("C");
+    u8g2->print(menuLevel == 1 ? "<" : " ");
 
     if (scale) {
         // Show current weight if scale has no error
@@ -91,7 +92,8 @@ inline void printScreen() {
         drawEncoderControlLabel();
         u8g2->setCursor(32, 55);
         u8g2->print(pumpFlowRate, 1);
-        u8g2->print(" mL/s ");
+        u8g2->print(" ");
+        u8g2->print(flowRate, 1);
         drawEncoderControlValue();
         u8g2->setFont(u8g2_font_profont11_tf);
     }
