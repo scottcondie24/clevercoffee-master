@@ -573,6 +573,13 @@ inline void displayWrappedMessage(const String& message, int x, int startY, int 
     if (clearSend) {
         u8g2->sendBuffer();
     }
+
+    if (y < displayHeight + lineHeight) {
+        blockScroll = true;
+    }
+    else {
+        blockScroll = false;
+    }
 }
 
 /**
@@ -809,6 +816,19 @@ inline bool displayMachineState() {
         return true;
     }
 
+    if (displayProfileDescription) {
+        String msg = String(currentProfile.description) + "\n";
+
+        for (int i = 0; i < currentProfile.phaseCount; i++) {
+            msg += "Phase " + String(i + 1) + ": ";
+            msg += String(currentProfile.phases[i].name) + "\n"; // first phase name
+            msg += String(currentProfile.phases[i].description) + "\n\n";
+        }
+
+        displayWrappedMessage(msg, 0, descriptionScrollY);
+        return true;
+    }
+
     // Show the heating logo when we are in regular PID mode and more than 5degC below the set point
     if (featureHeatingLogo && (machineState == kPidNormal || machineState == kSteam) && setpoint - temperature > 5.) {
         // For status info
@@ -1024,13 +1044,13 @@ void displayScrollingSubstring(int x, int y, int displayWidth, const char* text,
 
 void drawEncoderControlLabel() {
     int mode = config.get<int>("dimmer.mode");
-    // u8g2->print(menuLevel == 1 ? ">" : " ");
+    u8g2->print(menuLevel == 1 ? ">" : " ");
     u8g2->print(" ");
     u8g2->print((machineState == kBrew) && (mode == PROFILE) ? (autoStop ? "Auto Stop" : "Manual") : dimmerModes[mode]);
 }
 
 void drawEncoderControlValue() {
-    // u8g2->print(menuLevel == 2 ? ">" : " ");
+    u8g2->print(menuLevel == 2 ? ">" : " ");
     switch (config.get<int>("dimmer.mode")) {
         case POWER:
             u8g2->print(config.get<float>("dimmer.setpoint.power"), 0);
