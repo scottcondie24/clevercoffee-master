@@ -337,6 +337,7 @@ class Config {
             _configDefs.emplace("system.showdisplay.enabled", ConfigDef::forBool(true));
             _configDefs.emplace("system.show_brewdata.enabled", ConfigDef::forBool(true));
             _configDefs.emplace("system.show_flowdata.enabled", ConfigDef::forBool(true));
+            _configDefs.emplace("system.send_serial.enabled", ConfigDef::forBool(true));
 
             // Display
             _configDefs.emplace("display.template", ConfigDef::forInt(0, 0, 4));
@@ -394,6 +395,8 @@ class Config {
 #endif
             _configDefs.emplace("hardware.sensors.pressure.enabled", ConfigDef::forBool(false));
             _configDefs.emplace("hardware.sensors.flowsensor.enabled", ConfigDef::forBool(false));
+            _configDefs.emplace("hardware.sensors.flowsensor.active", ConfigDef::forBool(false));
+            _configDefs.emplace("hardware.sensors.flowsensor.calibration", ConfigDef::forDouble(FLOW_SENSOR_PULSES, FLOW_SENSOR_CALIBRATION_MIN, FLOW_SENSOR_CALIBRATION_MAX));
             _configDefs.emplace("hardware.sensors.watertank.enabled", ConfigDef::forBool(false));
             _configDefs.emplace("hardware.sensors.watertank.mode", ConfigDef::forInt(Switch::NORMALLY_CLOSED, 0, 1));
 

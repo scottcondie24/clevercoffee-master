@@ -29,7 +29,7 @@ bool triggered = false;
 int triggerCountdown = 0;
 
 float setPressure = PUMP_PRESSURE_SETPOINT;
-float setPumpFlowRate = PUMP_FLOW_SETPOINT;
+float setFlowRate = PUMP_FLOW_SETPOINT;
 PumpMode pumpControlMode = PRESSURE;
 float dimmerPower = PUMP_POWER_SETPOINT;
 float pressureKp = PSM_PRESSURE_KP;
@@ -245,12 +245,12 @@ void runProfile(int profileIndex) {
 
             if (phase.exit_type == EXIT_TYPE_NONE && phase.weight > 0 && config.get<bool>("hardware.sensors.scale.enabled")) {
                 float t = min((filteredWeight - lastBrewWeight) / (phase.weight - lastBrewWeight), 1.0f);
-                setPumpFlowRate = lastFlow + (phase.flow - lastFlow) * t;
+                setFlowRate = lastFlow + (phase.flow - lastFlow) * t;
             }
             else {
                 float elapsed = (currBrewTime - phaseTiming) / 1000.0;
                 float t = min(elapsed / phase.seconds, 1.0f);
-                setPumpFlowRate = lastFlow + (phase.flow - lastFlow) * t;
+                setFlowRate = lastFlow + (phase.flow - lastFlow) * t;
             }
         }
         else {
@@ -261,7 +261,7 @@ void runProfile(int profileIndex) {
             }
 
             pumpControlMode = FLOW;
-            setPumpFlowRate = phase.flow;
+            setFlowRate = phase.flow;
         }
 
         setPressure = 0;
@@ -305,18 +305,18 @@ void runProfile(int profileIndex) {
             pumpControlMode = PRESSURE;
             setPressure = phase.pressure;
         }
-        setPumpFlowRate = 0;
+        setFlowRate = 0;
     }
     else {
         // Fallback: infer from pressure/flow, but shouldnt ever get here
         if (phase.pressure > 0) {
             pumpControlMode = PRESSURE;
             setPressure = phase.pressure;
-            setPumpFlowRate = 0;
+            setFlowRate = 0;
         }
         else {
             pumpControlMode = FLOW;
-            setPumpFlowRate = phase.flow;
+            setFlowRate = phase.flow;
             setPressure = 0;
         }
     }
@@ -380,7 +380,7 @@ void loopPump() {
         else if (machineState == kManualFlush) {
             if (config.get<int>("dimmer.mode") == FLOW) {
                 pumpControlMode = FLOW;
-                setPumpFlowRate = config.get<float>("dimmer.setpoint.flow");
+                setFlowRate = config.get<float>("dimmer.setpoint.flow");
             }
             else if (config.get<int>("dimmer.mode") == POWER) {
                 pumpControlMode = POWER;
@@ -404,7 +404,7 @@ void loopPump() {
                     break;
 
                 case FLOW:
-                    setPumpFlowRate = config.get<float>("dimmer.setpoint.flow");
+                    setFlowRate = config.get<float>("dimmer.setpoint.flow");
                     pumpControlMode = FLOW;
                     flowPressureCeiling = 9.0; // pressure bar
                     flowPressureRange = 0.2;   // reduce to 0 output over 9.2bar
@@ -464,8 +464,8 @@ void loopPump() {
 
                 PidResults[loopIndexPid][0] = inputPressure;
                 PidResults[loopIndexPid][1] = setPressure;
-                PidResults[loopIndexPid][2] = pumpFlowRate;
-                PidResults[loopIndexPid][3] = setPumpFlowRate;
+                PidResults[loopIndexPid][2] = flowRate;
+                PidResults[loopIndexPid][3] = setFlowRate;
                 PidResults[loopIndexPid][4] = currBrewWeight;
 
                 if (pumpControlMode == POWER) {
@@ -481,14 +481,14 @@ void loopPump() {
                         inputPID = inputPressureFilter;                                                                      // inputPressure;
                         targetPID = setPressure;
                         // Smooth flow override, doesnt work well in pressure
-                        targetPID = applySmoothOverride(targetPID, pumpFlowRate, flowPressureCeiling, flowPressureRange, 2); // 1 is linear reduction, 2 quadratic, 3 cubic
+                        targetPID = applySmoothOverride(targetPID, flowRateFilter, flowPressureCeiling, flowPressureRange, 2); // 1 is linear reduction, 2 quadratic, 3 cubic
                         inputKp = pressureKp;
                         inputKi = pressureKi;
                         inputKd = pressureKd;
                     }
                     else if (pumpControlMode == FLOW) {
                         inputPID = flowRateFilter;
-                        targetPID = setPumpFlowRate;
+                        targetPID = setFlowRate;
                         // Smooth pressure override
                         targetPID = applySmoothOverride(targetPID, inputPressureFilter, flowPressureCeiling, flowPressureRange, 2); // 1 is linear reduction, 2 quadratic, 3 cubic
                         inputKp = flowKp;

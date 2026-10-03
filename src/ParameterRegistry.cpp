@@ -1240,6 +1240,19 @@ void ParameterRegistry::initialize(Config& config) {
         true
     );
 
+#ifdef BOARD_ESP32_S3
+    addBoolConfigParam(
+        "system.send_serial.enabled",
+        "Enable variables in serial",
+        sSystemSection,
+        1306,
+        nullptr,
+        "Send variables via serial for second microcontroller",
+        [&config] { return true; },
+        true
+    );
+#endif
+
     // Hardware section
 
     // OLED
@@ -1639,6 +1652,30 @@ void ParameterRegistry::initialize(Config& config) {
         nullptr,
         "Enable flow sensor for monitoring water flow",
         [] { return true; },
+        true
+    );
+
+    addBoolConfigParam(
+        "hardware.sensors.flowsensor.active",
+        "Activate Flow Sensor",
+        sHardwareSensorSection,
+        2413,
+        nullptr,
+        "Use flow sensor for controlling the pump",
+        [] { return true; },
+        true
+    );
+    
+    addNumericConfigParam<double>(
+        "hardware.sensors.flowsensor.calibration",
+        "Flow Sensor Calibration Factor",
+        kDouble,
+        sHardwareSensorSection,
+        2414,
+        nullptr,
+        FLOW_SENSOR_CALIBRATION_MIN, FLOW_SENSOR_CALIBRATION_MAX,
+        "Pulses per millilitre of the flow sensor, DM60 is 48, other sensors have been 1.875 and 7.5",
+        [&config] { return config.get<int>("hardware.sensors.flowsensor.enabled"); },
         true
     );
 

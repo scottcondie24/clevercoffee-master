@@ -13,9 +13,11 @@ volatile uint32_t pulseTime[2] = {0};
 volatile bool pulseIdx = 0;
 uint32_t totalPulses = 0;           // used to allow pcnt to be reset, otherwise it would saturate at h_lim and stop counting
 int16_t deltaCount = 0;
-const float pulses_per_ml = 48.0f;  // Nano DM60 datasheet states 48000 per litre. Other sensors have been 1.875f and 7.5f and require high flow rate to start
-pcnt_unit_t flowUnit = PCNT_UNIT_0; // so far its only manual selection of the unit number, this may interfere with an encoder when added
+float pulses_per_ml = 48.0f;  // Nano DM60 datasheet states 48000 per litre. Other sensors have been 1.875f and 7.5f and require high flow rate to start
+pcnt_unit_t flowUnit = PCNT_UNIT_1; // so far its only manual selection of the unit number, this may interfere with an encoder when added
 bool debugFlow = false;
+const uint32_t timeoutUS = 2000000;
+volatile uint32_t isrPulseCount = 0;
 
 int16_t deltaCountDebug[20] = {0};
 uint16_t deltaCountDebugIndex = 0;
@@ -26,6 +28,7 @@ void IRAM_ATTR flowPulseISR() {
     if (current_time - pulseTime[pulseIdx] > 200) { // debounce of 200 microseconds
         pulseIdx = !pulseIdx;
         pulseTime[pulseIdx] = current_time;
+        isrPulseCount++;
     }
 }
 
@@ -57,10 +60,11 @@ void initFlowSensorPCNT(int16_t pin) {
     pcnt_counter_resume(flowUnit);
 }
 
-void initFlowSensor(GPIOPin& dataPin, bool debug = false) {
+void initFlowSensor(GPIOPin& dataPin, bool debug = false, float calibration = 48.0f) {
     attachInterrupt(digitalPinToInterrupt(dataPin.getPin()), flowPulseISR, RISING);
     initFlowSensorPCNT(dataPin.getPin());
     debugFlow = debug;
+    pulses_per_ml = calibration;
 }
 
 void resetFlowCounter() {
@@ -80,19 +84,36 @@ int16_t readFlowPulses() {
 float readFlowMLperSec() {
     static int16_t lastCount = 0;
     static uint32_t lastTime = 0;
+    static uint32_t lastPulseTime = 0;
     int16_t count;
     static bool debugPrintFlow = false;
+    static float currentFlowRate = 0.0f;
 
     pcnt_get_counter_value(flowUnit, &count);
 
+    noInterrupts();
+    uint32_t pulseTime1 = pulseTime[pulseIdx];        // latest pulse timestamp
+    uint32_t pulseTime2 = pulseTime[!pulseIdx];       // previous pulse timestamp
+    interrupts();
+
+    uint32_t now = micros();
+    uint32_t deltaTime = now - lastTime;
+    lastTime = now;
     deltaCount = count - lastCount;
     lastCount = count;
     totalPulses += deltaCount;
+
+    uint32_t pulseInterval = pulseTime1 - pulseTime2; // last pulse interval
+
+    if (lastPulseTime == 0) {
+        lastPulseTime = pulseTime1;
+    }
 
     if (count > 25000) {
         // reset occasionally to prevent saturation
         resetFlowCounter();
         lastCount = 0;
+        isrPulseCount = 0;
     }
 
     // see the last 20 delta counts
@@ -108,6 +129,8 @@ float readFlowMLperSec() {
             if (debugPrintFlow) {
                 // only print if a pulse was detected
                 debugPrintFlow = false;
+
+                LOGF(DEBUG, "PCNT Total: %d | ISR Total: %d", totalPulses, isrPulseCount);
 
                 char buffer[512];
                 int len = 0;
@@ -128,38 +151,35 @@ float readFlowMLperSec() {
         }
     }
 
-    uint32_t now = micros();
-    uint32_t deltaTime = now - lastTime;
+    uint32_t timeSinceLastPulse = now - pulseTime1;
 
-    noInterrupts();
-    uint32_t pulseTime1 = pulseTime[pulseIdx];        // latest pulse timestamp
-    uint32_t pulseTime2 = pulseTime[!pulseIdx];       // previous pulse timestamp
-    interrupts();
+    if (deltaCount > 0) {
+        // Instead of using the 20ms-35ms loop time, we calculate the EXACT time 
+        // that elapsed between the last pulse of the PREVIOUS read and the last pulse of THIS read.
+        uint32_t deltaReadPulseTime = pulseTime1 - lastPulseTime;   // time since the last pulse when this function was last called
+        
+        if (deltaReadPulseTime > 0) {
+            float frequency = ((float)deltaCount * 1000000.0f) / deltaReadPulseTime;
+            currentFlowRate = frequency / pulses_per_ml;
+        }
 
-    uint32_t pulseInterval = pulseTime1 - pulseTime2; // last pulse interval
-    lastTime = now;
-
-    if (now - pulseTime1 > pulseInterval) {
-        // if no pulses at the same rate as last pulse, use time since last pulse to indicate declining flow rate
-        pulseInterval = now - pulseTime1;
+        lastPulseTime = pulseTime1;
+    } 
+    else {
+        // If the fluid is slowing down, timeSinceLastPulse will start to exceed the last known interval.
+        // We decay the flow rate based on how long we've been waiting for a pulse.
+        if (timeSinceLastPulse > pulseInterval && pulseInterval > 0) {
+            float frequency = 1000000.0f / (float)timeSinceLastPulse;
+            currentFlowRate = frequency / pulses_per_ml;
+        }
     }
 
-    if (deltaTime == 0 || pulseInterval > 2000000) {
+    if (deltaTime == 0 || pulseInterval > timeoutUS) {
         // if no pulses in the last two seconds, return 0 to avoid returning very high flow rates due to noise
         return 0;
     }
 
-    float frequency = (float)deltaCount * 1000000.0f / deltaTime;
-
-    if (deltaCount < 4) {
-        // if we have less than 4 pulses in the interval, use the last pulse interval to calculate frequency.
-        // It is assumed the flow rate between pulses will be fairly constant, but there is a large difference in calculated flow between 2 pulses and 3 pulses
-        if (pulseInterval > 0) {
-            frequency = 1000000.0f / pulseInterval;
-        }
-    }
-
-    return frequency / pulses_per_ml;
+    return currentFlowRate;
 }
 
 float readPulseDelta() {

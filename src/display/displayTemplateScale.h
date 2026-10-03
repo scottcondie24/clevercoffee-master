@@ -91,9 +91,9 @@ inline void printScreen() {
         u8g2->print(dimmerPower, 0);
         drawEncoderControlLabel();
         u8g2->setCursor(32, 55);
-        u8g2->print(pumpFlowRate, 1);
-        u8g2->print(" ");
         u8g2->print(flowRate, 1);
+        u8g2->print(" ");
+        u8g2->print(flowRateFilter, 1);
         drawEncoderControlValue();
         u8g2->setFont(u8g2_font_profont11_tf);
     }

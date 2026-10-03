@@ -1177,15 +1177,16 @@ void setup() {
         waterTankSensor = new IOSwitch(PIN_WATERTANKSENSOR, (mode == Switch::NORMALLY_OPEN ? GPIOPin::IN_PULLDOWN : GPIOPin::IN_PULLUP), Switch::TOGGLE, mode, !mode);
     }
 
-    if (config.get<bool>("hardware.sensors.flowsensor.enabled")) {
-        flowSensorPin = new GPIOPin(PIN_FLOWSENSOR, GPIOPin::IN_HARDWARE);
-        initFlowSensor(*flowSensorPin, config.get<bool>("system.show_flowdata.enabled"));
-    }
-
     if (config.get<bool>("hardware.switches.encoder.enabled")) {
         encoderSwitch = new IOSwitch(PIN_ROTARY_SW, GPIOPin::IN_PULLUP, Switch::TOGGLE, Switch::NORMALLY_CLOSED, Switch::NORMALLY_CLOSED);
         initEncoder();
     }
+    
+    if (config.get<bool>("hardware.sensors.flowsensor.enabled")) {
+        flowSensorPin = new GPIOPin(PIN_FLOWSENSOR, GPIOPin::IN_HARDWARE);
+        initFlowSensor(*flowSensorPin, config.get<bool>("system.show_flowdata.enabled"), config.get<bool>("hardware.sensors.flowsensor.calibration"));
+    }
+
 
     if (!config.get<bool>("system.offline_mode")) { // WiFi Mode
         wiFiSetup();
@@ -1619,18 +1620,18 @@ void loopPid() {
         // send brew data to website endpoint
         if (pumpRelay->getType() == PumpControlType::DIMMER) {
             if (pumpControlMode == FLOW) {
-                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, flowRate, setPumpFlowRate, currBrewWeight, dimmerPower, temperature);
+                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, flowRateFilter, setFlowRate, currBrewWeight, dimmerPower, temperature);
             }
             else if (pumpControlMode == PRESSURE) {
-                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, setPressure, flowRate, 0.0, currBrewWeight, dimmerPower, temperature);
+                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, setPressure, flowRateFilter, 0.0, currBrewWeight, dimmerPower, temperature);
             }
             else {
-                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, flowRate, 0.0, currBrewWeight, dimmerPower, temperature);
+                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, flowRateFilter, 0.0, currBrewWeight, dimmerPower, temperature);
             }
         }
         else {
             // pressure and weight will be zero if not enabled
-            sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, flowRate, 0.0, currBrewWeight, pumpRelay->getState() ? 100 : 0, temperature);
+            sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, flowRateFilter, 0.0, currBrewWeight, pumpRelay->getState() ? 100 : 0, temperature);
         }
 
         lastBrewEvent = millis();
@@ -1692,8 +1693,10 @@ void loopPid() {
         if (pumpRelay) {
             if (config.get<bool>("hardware.sensors.flowsensor.enabled")) {
                 sensorFlowRate = readFlowMLperSec();
-                flowRate = sensorFlowRate;
-                flowRateFilter = filterFlowValue(flowRate);
+                if (config.get<bool>("hardware.sensors.flowsensor.active")) {
+                    flowRate = sensorFlowRate;
+                    flowRateFilter = filterFlowValue(flowRate);
+                }
 
                 if (config.get<bool>("system.show_flowdata.enabled")) {
                     if (sensorFlowRate > 0 && millis() - lastFlowTime > 1000) {
@@ -1710,7 +1713,8 @@ void loopPid() {
                 auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
                 pumpFlowRate = dimmer->getFlow(inputPressure);
 
-                if (!config.get<bool>("hardware.sensors.flowsensor.enabled")) { // prioritise flow sensor if enabled, otherwise use calculated flow from dimmer
+                if (!(config.get<bool>("hardware.sensors.flowsensor.enabled") && config.get<bool>("hardware.sensors.flowsensor.active"))) { // prioritise flow sensor if enabled, otherwise use calculated flow from dimmer
+                    // this should change to auto use flow sensor if phase or velo, and software for PSM
                     flowRate = pumpFlowRate;
                     flowRateFilter = filterFlowValue(flowRate);
                 }
@@ -1837,9 +1841,11 @@ void loopPid() {
         bPID.SetTunings(steamKp, 0, 0, 1);
     }
 #ifdef BOARD_ESP32_S3
-    if (millis() - lastSerial1Send > serial1SendInterval) {
-        Serial1.printf("T: %.2f, T2: %.2f, P: %.2f, W: %.2f\n", temperature, temperature2, inputPressure, currReadingWeight);
-        lastSerial1Send = millis();
+    if (config.get<bool>("system.send_serial.enabled")) {
+        if (millis() - lastSerial1Send > serial1SendInterval) {
+            Serial1.printf("T: %.2f, T2: %.2f, P: %.2f, P(f): %.2f, W: %.2f, FR: %.2f, FR(f): %.2f\n", temperature, temperature2, inputPressure, inputPressureFilter, currReadingWeight, flowRate, flowRateFilter);
+            lastSerial1Send = millis();
+        }
     }
 #endif
 }
