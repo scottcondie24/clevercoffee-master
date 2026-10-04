@@ -664,7 +664,7 @@ inline void sendTempEvent(const double currentTemp, const double targetTemp, con
     }
 }
 
-void sendBrewEvent(float time, float inputPressure, float setPressure, float flowRate, float setFlowRate, float currBrewWeight, int dimmerPower, float temperature) {
+void sendBrewEvent(float time, float inputPressure, float setPressure, float flowRate, float setFlowRate, float scaleFlowRate, float currBrewWeight, int dimmerPower, float temperature, float temperature2) {
     JsonDocument doc;
 
     doc["currBrewTime"] = time;
@@ -672,9 +672,11 @@ void sendBrewEvent(float time, float inputPressure, float setPressure, float flo
     doc["setPressure"] = setPressure;
     doc["flowRate"] = flowRate;
     doc["setFlowRate"] = setFlowRate;
+    doc["scaleFlowRate"] = scaleFlowRate;
     doc["currBrewWeight"] = currBrewWeight;
     doc["dimmerPower"] = dimmerPower;
     doc["temperature"] = temperature;
+    doc["temperature2"] = temperature2;
 
     char jsonBuf[256];
     size_t len = serializeJson(doc, jsonBuf, sizeof(jsonBuf));

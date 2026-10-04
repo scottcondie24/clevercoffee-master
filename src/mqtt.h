@@ -697,7 +697,7 @@ inline int sendHASSIODiscoveryMsg() {
         failures += publishDiscovery(GenerateButtonDevice("scaleCalibrationOn", "Calibrate Scale"));
         failures += publishDiscovery(GenerateButtonDevice("scaleTareOn", "Tare Scale"));
         failures += publishDiscovery(GenerateNumberDevice("targetBrewWeight", "Brew Weight Target", TARGET_BREW_WEIGHT_MIN, TARGET_BREW_WEIGHT_MAX, 0.1, "g"));
-        failures += publishDiscovery(GenerateNumberDevice("flowRate", "Flow Rate", FLOW_RATE_MIN, FLOW_RATE_MAX, 0.1, "g/s"));
+        failures += publishDiscovery(GenerateNumberDevice("scaleFlowRate", "Scale Flow Rate", FLOW_RATE_MIN, FLOW_RATE_MAX, 0.1, "g/s"));
     }
 
     if (config.get<bool>("hardware.sensors.pressure.enabled")) {

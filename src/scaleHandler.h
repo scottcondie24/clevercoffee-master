@@ -51,9 +51,9 @@ float t[N];
 int idx = 0;
 int readIdx = 0;
 unsigned long lastWeightTime = 0;
-unsigned long lastFlowTime = 0;
-float flowRate = 0;
-float flowRatePrev = 0;
+unsigned long lastScaleFlowTime = 0;
+float scaleFlowRate = 0;
+float scaleFlowRatePrev = 0;
 float alpha = 0.3;
 
 /**
@@ -67,13 +67,13 @@ void updateFlow(float weight) {
     float sumTT = 0;
     float sumTW = 0;
 
-    if (newMillis - lastFlowTime < 150) {
+    if (newMillis - lastScaleFlowTime < 150) {
         return;
     }
 
     w[idx] = weight;
-    t[idx] = newMillis - lastFlowTime;
-    lastFlowTime = newMillis;
+    t[idx] = newMillis - lastScaleFlowTime;
+    lastScaleFlowTime = newMillis;
     idx = (idx + 1) % N;
 
     for (int i = 0; i < N; i++) {
@@ -95,8 +95,8 @@ void updateFlow(float weight) {
 
     if (denom > 0.1) {
         float fR = constrain((N * sumTW - sumT * sumW) / denom, FLOW_RATE_MIN, FLOW_RATE_MAX);
-        flowRate = alpha * fR + (1.0f - alpha) * flowRatePrev;
-        flowRatePrev = flowRate;
+        scaleFlowRate = alpha * fR + (1.0f - alpha) * scaleFlowRatePrev;
+        scaleFlowRatePrev = scaleFlowRate;
     }
 }
 
@@ -395,7 +395,7 @@ inline void shotTimerScale() {
 
             if (currBrewState != kBrewIdle) {
                 stoppedWeight = currBrewWeight; // updates until pump stops
-                stoppedFlowRate = flowRate;
+                stoppedFlowRate = scaleFlowRate;
             }
 
             if (!shouldDisplayBrewTimer()) {

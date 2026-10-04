@@ -1262,7 +1262,7 @@ void setup() {
 
                 mqttSensors["currReadingWeight"] = [] { return currReadingWeight; };
                 mqttSensors["currBrewWeight"] = [] { return currBrewWeight; };
-                mqttSensors["flowRate"] = [] { return flowRate; };
+                mqttSensors["scaleFlowRate"] = [] { return scaleFlowRate; };
             }
 
             if (config.get<bool>("hardware.sensors.pressure.enabled")) {
@@ -1270,7 +1270,7 @@ void setup() {
             }
 
             if (config.get<bool>("hardware.sensors.flowsensor.enabled") || config.get<bool>("dimmer.enabled")) {
-                mqttSensors["flowRate"] = [] { return flowRate; };
+                mqttSensors["flowRate"] = [] { return flowRateFilter; };
             }
 
             snprintf(topic_will, sizeof(topic_will), "%s%s/%s", mqtt_topic_prefix.c_str(), hostname.c_str(), "status");
@@ -1624,18 +1624,18 @@ void loopPid() {
         // send brew data to website endpoint
         if (pumpRelay->getType() == PumpControlType::DIMMER) {
             if (pumpControlMode == FLOW) {
-                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, flowRateFilter, setFlowRate, currBrewWeight, dimmerPower, temperature);
+                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, flowRateFilter, setFlowRate, scaleFlowRate, currBrewWeight, dimmerPower, temperature, temperature2);
             }
             else if (pumpControlMode == PRESSURE) {
-                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, setPressure, flowRateFilter, 0.0, currBrewWeight, dimmerPower, temperature);
+                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, setPressure, flowRateFilter, 0.0, scaleFlowRate, currBrewWeight, dimmerPower, temperature, temperature2);
             }
             else {
-                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, flowRateFilter, 0.0, currBrewWeight, dimmerPower, temperature);
+                sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, flowRateFilter, 0.0, scaleFlowRate, currBrewWeight, dimmerPower, temperature, temperature2);
             }
         }
         else {
             // pressure and weight will be zero if not enabled
-            sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, flowRateFilter, 0.0, currBrewWeight, pumpRelay->getState() ? 100 : 0, temperature);
+            sendBrewEvent(currBrewTime / 1000, inputPressureFilter, 0.0, flowRateFilter, 0.0, scaleFlowRate, currBrewWeight, pumpRelay->getState() ? 100 : 0, temperature, temperature2);
         }
 
         lastBrewEvent = millis();
