@@ -1,6 +1,5 @@
 #include "Dimmers.h"
 #include "Adafruit_MCP4725.h"
-#include "Logger.h"
 
 Adafruit_MCP4725 dac;
 
@@ -38,21 +37,23 @@ void PumpDimmer::begin() {
     }
 
     _out.write(LOW);
-    _timer = timerBegin(_timerNum, 80, true); // 80 prescaler = 1 µs ticks (assuming 80 MHz APB clock)
+    _timer = timerBegin(_timerNum, 80, true); // 1 µs ticks
 
     timerAttachInterrupt(
         _timer,
-        []() {
+        []() ARDUINO_ISR_ATTR {
             if (instance->_phaseState == TimerPhase::DELAY) {
                 instance->_out.write(HIGH);
                 instance->_phaseState = TimerPhase::RESET;
+
+                timerAlarmDisable(instance->_timer);
                 timerWrite(instance->_timer, 0);
-                timerAlarmWrite(instance->_timer, 100, false); // Reset in 100 µs
+                timerAlarmWrite(instance->_timer, 2000, false);
                 timerAlarmEnable(instance->_timer);
             }
             else {
                 instance->_out.write(LOW);
-                timerAlarmDisable(instance->_timer); // Done for this cycle
+                timerAlarmDisable(instance->_timer);
             }
         },
         true);
@@ -174,7 +175,7 @@ float PumpDimmer::getFlow(float pressure) const {
     return result > 0.0f ? result : 0.0f;
 }
 
-void PumpDimmer::measure_frequency(unsigned long current_time, unsigned long last_cross_time) {
+void IRAM_ATTR PumpDimmer::measure_frequency(unsigned long current_time, unsigned long last_cross_time) {
     static bool adjusted = false; // flag to ensure scaling only happens once
     static int _measurement_count = 0;
     static int _restart_count = 0;
@@ -293,26 +294,31 @@ void IRAM_ATTR PumpDimmer::onZeroCrossPSMStatic() {
 // Phase method
 void PumpDimmer::handlePhaseZeroCross() {
     unsigned long now = micros();
-
-    if (now - _lastZC < 15000) {
-        return; // Debounce
+    // catch BOTH zero crossings
+    if (now - _lastZC < 2000) {
+        return;
     }
 
-    if (!_frequency_measured) {
-        measure_frequency(now, _lastZC);
+    // frequency detection needs full cycle
+    static unsigned long _lastFullZC = 0;
+    if (now - _lastFullZC >= 15000) {
+        if (!_frequency_measured) {
+            measure_frequency(now, _lastFullZC);
+        }
+        _lastFullZC = now;
     }
 
     _lastZC = now;
+    _out.write(LOW);
 
     if (_power <= 0 || !_state) {
-        _out.write(LOW);
         return;
     }
 
     if (_frequency_measured) {
         _phaseState = TimerPhase::DELAY;
-        timerWrite(_timer, 0);
         timerAlarmDisable(_timer);
+        timerWrite(_timer, 0);
         timerAlarmWrite(_timer, _delayMicros, false);
         timerAlarmEnable(_timer);
     }

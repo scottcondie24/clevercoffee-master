@@ -165,7 +165,7 @@ std::unique_ptr<PumpControl> pumpRelay = nullptr;
 Relay* heaterRelay = nullptr;
 Relay* valveRelay = nullptr;
 
-GPIOPin pumpZCPin(PIN_ZC, GPIOPin::IN_PULLDOWN);
+GPIOPin pumpZCPin(PIN_ZC, GPIOPin::IN_HARDWARE);
 GPIOPin* flowSensorPin = nullptr;
 
 Switch* powerSwitch = nullptr;
@@ -1129,7 +1129,7 @@ void setup() {
 
     if (config.get<bool>("hardware.sensors.flowsensor.enabled")) {
         flowSensorPin = new GPIOPin(PIN_FLOW, GPIOPin::IN_HARDWARE);
-        initFlowSensor(*flowSensorPin, config.get<bool>("system.show_flowdata.enabled"));
+        initFlowSensor(*flowSensorPin, config.get<bool>("system.show_flowdata.enabled"), config.get<float>("hardware.sensors.flowsensor.calibration"));
     }
 
     if (!config.get<bool>("system.offline_mode")) { // WiFi Mode
@@ -1562,8 +1562,11 @@ void loopPid() {
         if (pumpRelay) {
             if (config.get<bool>("hardware.sensors.flowsensor.enabled")) {
                 sensorFlowRate = readFlowMLperSec();
-                flowRate = sensorFlowRate;
-                flowRateFilter = filterFlowValue(flowRate);
+
+                if (!(pumpRelay->getType() == PumpControlType::DIMMER && config.get<int>("dimmer.type") == 0) || config.get<bool>("hardware.sensors.flowsensor.force")) {
+                    flowRate = sensorFlowRate;
+                    flowRateFilter = filterFlowValue(flowRate);
+                }
 
                 if (config.get<bool>("system.show_flowdata.enabled")) {
                     if (sensorFlowRate > 0 && millis() - lastFlowTime > 1000) {
@@ -1580,7 +1583,9 @@ void loopPid() {
                 auto* dimmer = static_cast<PumpDimmer*>(pumpRelay.get());
                 pumpFlowRate = dimmer->getFlow(inputPressure);
 
-                if (!config.get<bool>("hardware.sensors.flowsensor.enabled")) { // prioritise flow sensor if enabled, otherwise use calculated flow from dimmer
+                // prioritise flow sensor for Phase and Velo if enabled, or in PSM if forced, otherwise use pump flow rate
+                if (!config.get<bool>("hardware.sensors.flowsensor.enabled") ||
+                    (config.get<int>("dimmer.type") == 0 && !(config.get<bool>("hardware.sensors.flowsensor.enabled") && config.get<bool>("hardware.sensors.flowsensor.force")))) {
                     flowRate = pumpFlowRate;
                     flowRateFilter = filterFlowValue(flowRate);
                 }

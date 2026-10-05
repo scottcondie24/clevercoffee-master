@@ -387,6 +387,8 @@ class Config {
             _configDefs.emplace("hardware.sensors.temperature.type", ConfigDef::forInt(0, 0, 1));
             _configDefs.emplace("hardware.sensors.pressure.enabled", ConfigDef::forBool(false));
             _configDefs.emplace("hardware.sensors.flowsensor.enabled", ConfigDef::forBool(false));
+            _configDefs.emplace("hardware.sensors.flowsensor.force", ConfigDef::forBool(false));
+            _configDefs.emplace("hardware.sensors.flowsensor.calibration", ConfigDef::forDouble(FLOW_SENSOR_PULSES, FLOW_SENSOR_CALIBRATION_MIN, FLOW_SENSOR_CALIBRATION_MAX));
             _configDefs.emplace("hardware.sensors.watertank.enabled", ConfigDef::forBool(false));
             _configDefs.emplace("hardware.sensors.watertank.mode", ConfigDef::forInt(Switch::NORMALLY_CLOSED, 0, 1));
 

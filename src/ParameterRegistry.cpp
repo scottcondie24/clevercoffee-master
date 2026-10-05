@@ -804,7 +804,7 @@ void ParameterRegistry::initialize(Config& config) {
         PUMP_CALIBRATION_FLOW_MIN,
         PUMP_CALIBRATION_FLOW_MAX,
         "Water flow in 30s from group head, use brew or flush function",
-        [&config] { return config.get<bool>("dimmer.enabled") && config.get<bool>("hardware.sensors.pressure.enabled") && !config.get<bool>("hardware.sensors.flowsensor.enabled"); },
+        [&config] { return config.get<bool>("dimmer.enabled") && config.get<bool>("hardware.sensors.pressure.enabled"); },
         true
     );
 
@@ -818,7 +818,7 @@ void ParameterRegistry::initialize(Config& config) {
         PUMP_CALIBRATION_FLOW_MIN,
         PUMP_CALIBRATION_FLOW_MAX,
         "Water flow in 30s from return line, use water switch function",
-        [&config] { return config.get<bool>("dimmer.enabled") && config.get<bool>("hardware.sensors.pressure.enabled") && !config.get<bool>("hardware.sensors.flowsensor.enabled"); },
+        [&config] { return config.get<bool>("dimmer.enabled") && config.get<bool>("hardware.sensors.pressure.enabled"); },
         true
     );
 
@@ -832,7 +832,7 @@ void ParameterRegistry::initialize(Config& config) {
         PUMP_PRESSURE_SETPOINT_MIN, 
         PUMP_PRESSURE_SETPOINT_MAX,
         "Pressure sensor value when water switch is active and water is returning to the tank",
-        [&config] { return config.get<bool>("dimmer.enabled") && config.get<bool>("hardware.sensors.pressure.enabled") && !config.get<bool>("hardware.sensors.flowsensor.enabled"); },
+        [&config] { return config.get<bool>("dimmer.enabled") && config.get<bool>("hardware.sensors.pressure.enabled"); },
         true
     );
 
@@ -1565,6 +1565,30 @@ void ParameterRegistry::initialize(Config& config) {
         nullptr,
         "Enable flow sensor for monitoring water flow",
         [] { return true; },
+        true
+    );
+
+    addBoolConfigParam(
+        "hardware.sensors.flowsensor.force",
+        "Force Flow Sensor in PSM",
+        sHardwareSensorSection,
+        2413,
+        nullptr,
+        "Force flow sensor to be used in PSM mode",
+        [] { return true; },
+        true
+    );
+
+    addNumericConfigParam<double>(
+        "hardware.sensors.flowsensor.calibration",
+        "Flow Sensor Calibration Factor",
+        kDouble,
+        sHardwareSensorSection,
+        2414,
+        nullptr,
+        FLOW_SENSOR_CALIBRATION_MIN, FLOW_SENSOR_CALIBRATION_MAX,
+        "Pulses per millilitre of the flow sensor, DM60 is near 48",
+        [&config] { return config.get<int>("hardware.sensors.flowsensor.enabled"); },
         true
     );
 

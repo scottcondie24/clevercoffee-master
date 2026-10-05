@@ -34,7 +34,7 @@ class PumpDimmer : public PumpControl {
         GPIOPin& _out;
         GPIOPin& _zc;
         int _timerNum;
-        int _power;
+        volatile int _power;
         float _scaledPower;
         int _psmAccumulated;
         float _pressure;
@@ -43,9 +43,9 @@ class PumpDimmer : public PumpControl {
         volatile bool _frequency_measured = false;
         int _maxDelay = 5660;
         int _minDelay = 200;
-        bool _state;
-        uint32_t _delayMicros = 200;
-        unsigned long _lastZC = 0;
+        volatile bool _state;
+        volatile uint32_t _delayMicros = 200;
+        volatile unsigned long _lastZC = 0;
         ControlMethod _method;
         hw_timer_t* _timer;
         float _flowRate1 = 292.4f;    // g in 30s using flush
